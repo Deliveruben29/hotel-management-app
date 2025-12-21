@@ -8,6 +8,7 @@ import Housekeeping from './pages/Housekeeping';
 import Rates from './pages/Rates';
 import Availability from './pages/Availability';
 import Services from './pages/Services';
+import Companies from './pages/Companies';
 import Finance from './pages/Finance';
 
 function App() {
@@ -30,6 +31,8 @@ function App() {
         return <Rates />;
       case 'Services':
         return <Services />;
+      case 'Companies':
+        return <Companies />;
       case 'Availability':
         return <Availability />;
       case 'Finance':

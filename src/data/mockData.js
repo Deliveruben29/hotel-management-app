@@ -129,3 +129,9 @@ export const MOCK_SERVICES = [
     { id: 'S-004', name: 'Parking Hotel Guests', code: 'PKG', type: 'Other', price: 30.00, currency: 'CHF', deliveredTo: 'Unit', vat: '8.1% - Normal', channels: ['Direct'] },
     { id: 'S-005', name: 'Service Fee', code: 'SERFEE', type: 'Other', price: 3.50, currency: 'CHF', deliveredTo: 'Each guest', vat: '8.1% - Normal', channels: ['Direct'] },
 ];
+
+export const MOCK_COMPANIES = [
+    { id: 'C-001', name: 'Fittipaldi Gmbh', code: 'BUS000001', address: 'adf, 0246 Langwiesen, Switzerland', ratePlans: [], arInvoice: true },
+    { id: 'C-002', name: 'TechSolutions Inc', code: 'BUS000002', address: '123 Innovation Dr, Zurich, Switzerland', ratePlans: ['Corp Special'], arInvoice: true },
+    { id: 'C-003', name: 'Global Travel', code: 'BUS000003', address: '456 Wanderlust Ave, Geneva, Switzerland', ratePlans: [], arInvoice: false },
+];
