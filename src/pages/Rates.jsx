@@ -136,9 +136,17 @@ export default function Rates() {
                     <h1>Rates</h1>
                     <p className="subtitle">Configure rate plans and manage daily pricing.</p>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <button className="btn btn-primary">
-                        <span>+ New Rate Plan</span>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginRight: '1rem' }}>
+                        <button className="btn" style={{ background: 'transparent', border: '1px solid #e2e8f0', color: '#4a5568', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '1.2rem' }}>≡</span> Filter
+                        </button>
+                        <button className="btn" style={{ background: 'transparent', border: '1px solid #e2e8f0', color: '#4a5568', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '1.2rem' }}>⇩</span> Export
+                        </button>
+                    </div>
+                    <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>+</span> New Rate Plan
                     </button>
                 </div>
             </header>
