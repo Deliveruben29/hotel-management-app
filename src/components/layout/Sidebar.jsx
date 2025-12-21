@@ -1,6 +1,6 @@
 import React from 'react';
 
-const navItems = ['Dashboard', 'Reservations', 'Rack', 'Housekeeping', 'Availability', 'Inventory', 'Rates', 'Finance'];
+const navItems = ['Dashboard', 'Reservations', 'Rack', 'Housekeeping', 'Availability', 'Inventory', 'Rates', 'Services', 'Finance'];
 
 export default function Sidebar({ activeTab, onNavigate }) {
     return (

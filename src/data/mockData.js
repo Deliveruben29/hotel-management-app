@@ -121,3 +121,11 @@ export const RATE_PLANS = [
     { id: 'RP-003', name: 'Breakfast Included', code: 'BB', currency: 'USD', cancellationPolicy: 'Flexible', basePrice: 25, description: 'Standard rate + breakfast' },
     { id: 'RP-004', name: 'Corporate Special', code: 'CORP', currency: 'USD', cancellationPolicy: '24h Notice', basePrice: -15, description: 'Discount for corporate partners' },
 ];
+
+export const MOCK_SERVICES = [
+    { id: 'S-001', name: 'Breakfast Standard', code: 'BRE22_NRF', type: 'Food & Beverages', price: 22.00, currency: 'CHF', deliveredTo: 'Each Adult', vat: '8.1% - Normal', channels: ['Direct'] },
+    { id: 'S-002', name: 'Kidbreakfast', code: 'BRF_KIDS', type: 'Food & Beverages', price: 12.00, currency: 'CHF', deliveredTo: 'Each guest', vat: '8.1% - Normal', channels: ['Direct'] },
+    { id: 'S-003', name: 'Breakfast Non Refundable', code: 'BRF_NRF', type: 'Food & Beverages', price: 20.00, currency: 'CHF', deliveredTo: 'Each Adult', vat: '8.1% - Normal', channels: ['AltoVita', 'Booking.com', 'CM', '+4'] },
+    { id: 'S-004', name: 'Parking Hotel Guests', code: 'PKG', type: 'Other', price: 30.00, currency: 'CHF', deliveredTo: 'Unit', vat: '8.1% - Normal', channels: ['Direct'] },
+    { id: 'S-005', name: 'Service Fee', code: 'SERFEE', type: 'Other', price: 3.50, currency: 'CHF', deliveredTo: 'Each guest', vat: '8.1% - Normal', channels: ['Direct'] },
+];

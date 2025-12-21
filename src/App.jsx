@@ -7,6 +7,7 @@ import RoomRack from './pages/RoomRack';
 import Housekeeping from './pages/Housekeeping';
 import Rates from './pages/Rates';
 import Availability from './pages/Availability';
+import Services from './pages/Services';
 import Finance from './pages/Finance';
 
 function App() {
@@ -27,6 +28,8 @@ function App() {
         return <Housekeeping />;
       case 'Rates':
         return <Rates />;
+      case 'Services':
+        return <Services />;
       case 'Availability':
         return <Availability />;
       case 'Finance':
