@@ -5,6 +5,9 @@ import Reservations from './pages/Reservations';
 import Inventory from './pages/Inventory';
 import RoomRack from './pages/RoomRack';
 import Housekeeping from './pages/Housekeeping';
+import Rates from './pages/Rates';
+import Availability from './pages/Availability';
+import Finance from './pages/Finance';
 
 function App() {
   const [activeTab, setActiveTab] = useState('Dashboard');
@@ -22,6 +25,12 @@ function App() {
         return <RoomRack />;
       case 'Housekeeping':
         return <Housekeeping />;
+      case 'Rates':
+        return <Rates />;
+      case 'Availability':
+        return <Availability />;
+      case 'Finance':
+        return <Finance />;
       default:
         return (
           <div style={{

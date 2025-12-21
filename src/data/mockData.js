@@ -114,3 +114,10 @@ export const HOUSEKEEPING_CONDITIONS = {
     Dirty: { color: 'var(--color-warning)', bg: '#FEEBC8' },
     Inspect: { color: 'var(--color-primary)', bg: '#B2F5EA' },
 };
+
+export const RATE_PLANS = [
+    { id: 'RP-001', name: 'Best Available Rate', code: 'BAR', currency: 'USD', cancellationPolicy: 'Flexible', basePrice: null, description: 'Standard flexible rate' },
+    { id: 'RP-002', name: 'Non-Refundable', code: 'NONREF', currency: 'USD', cancellationPolicy: 'Non-Refundable', basePrice: -10, description: '10% discount, no refund' },
+    { id: 'RP-003', name: 'Breakfast Included', code: 'BB', currency: 'USD', cancellationPolicy: 'Flexible', basePrice: 25, description: 'Standard rate + breakfast' },
+    { id: 'RP-004', name: 'Corporate Special', code: 'CORP', currency: 'USD', cancellationPolicy: '24h Notice', basePrice: -15, description: 'Discount for corporate partners' },
+];
