@@ -10,6 +10,7 @@ import Availability from './pages/Availability';
 import Services from './pages/Services';
 import Companies from './pages/Companies';
 import Reports from './pages/Reports';
+import GeneralManagerReport from './pages/reports/GeneralManagerReport';
 import Finance from './pages/Finance';
 
 function App() {
@@ -37,6 +38,8 @@ function App() {
       case 'Reports':
       case 'Reports-Overview':
         return <Reports />;
+      case 'Reports-GM':
+        return <GeneralManagerReport />;
       case 'Availability':
         return <Availability />;
       case 'Finance':
