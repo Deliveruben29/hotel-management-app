@@ -8,32 +8,39 @@ export default function Inventory() {
     const renderToolbar = (placeholder) => (
         <div style={{
             marginBottom: '1.5rem',
-            background: 'white',
-            padding: '1rem',
-            borderRadius: 'var(--radius-md)',
-            boxShadow: 'var(--shadow-sm)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center'
         }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ position: 'relative', width: '350px' }}>
+                <div style={{
+                    position: 'absolute',
+                    top: '-10px',
+                    left: '10px',
+                    fontSize: '0.75rem',
+                    color: '#2d3748',
+                    background: 'white',
+                    padding: '0 4px',
+                    zIndex: 1
+                }}>Search</div>
                 <input
                     type="text"
                     placeholder={placeholder}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     style={{
+                        width: '100%',
                         padding: '0.6rem 1rem',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: 'var(--radius-sm)',
-                        minWidth: '300px',
-                        fontSize: '0.9rem'
+                        border: '2px solid #2b6cb0', // Focused blue border look or plain
+                        borderRadius: '4px',
+                        fontSize: '0.9rem',
+                        outline: 'none'
                     }}
                 />
-                <button className="btn" style={{ background: 'white', border: '1px solid #e2e8f0', color: 'var(--color-text-secondary)' }}>
-                    Filter
-                </button>
             </div>
+            <button className="btn" style={{ background: 'transparent', border: 'none', color: '#4a5568', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                <span style={{ fontSize: '1.2rem' }}>⇩</span> Export
+            </button>
         </div>
     );
 
@@ -93,18 +100,8 @@ export default function Inventory() {
 
     const renderUnitGroups = () => (
         <>
-            <div style={{
-                marginBottom: '1.5rem',
-                background: 'white',
-                padding: '1rem',
-                borderRadius: 'var(--radius-md)',
-                boxShadow: 'var(--shadow-sm)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-            }}>
-                <button className="btn btn-primary">+ New Unit Group</button>
-            </div>
+            {/* Toolbar for groups - similar to units but maybe different placeholder logic if needed */}
+            {renderToolbar("Search unit groups...")}
 
             <div className="table-container">
                 <table>
@@ -175,19 +172,33 @@ export default function Inventory() {
         <main className="dashboard-view fade-in">
             <header className="view-header">
                 <div>
+                    {/* Breadcrumbs */}
+                    <div style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '0.5rem', fontWeight: 500 }}>
+                        <span style={{ color: '#718096' }}>Jezebel Hotel Rhein</span>
+                        <span style={{ margin: '0 0.5rem' }}>/</span>
+                        <span style={{ background: '#FED7D7', padding: '2px 4px', borderRadius: '4px', color: 'black' }}>Test</span>
+                        <span style={{ margin: '0 0.5rem' }}>/</span>
+                        Inventory
+                    </div>
                     <h1>Inventory</h1>
-                    <p className="subtitle">Manage your units, unit groups, and attributes.</p>
                 </div>
-                {activeTab === 'units' && (
-                    <button className="btn btn-primary">
-                        <span>+ New Unit</span>
-                    </button>
-                )}
-                {activeTab === 'attributes' && (
-                    <button className="btn btn-primary">
-                        <span>+ New Attribute</span>
-                    </button>
-                )}
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                    {activeTab === 'units' && (
+                        <button className="btn" style={{ background: 'transparent', color: '#F6AD55', fontWeight: 600, border: 'none', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <span>+</span> New unit
+                        </button>
+                    )}
+                    {activeTab === 'attributes' && (
+                        <button className="btn" style={{ background: 'transparent', color: '#F6AD55', fontWeight: 600, border: 'none', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <span>+</span> New attribute
+                        </button>
+                    )}
+                    {activeTab === 'groups' && (
+                        <button className="btn" style={{ background: 'transparent', color: '#F6AD55', fontWeight: 600, border: 'none', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <span>+</span> New unit group
+                        </button>
+                    )}
+                </div>
             </header>
 
             {/* Sub-navigation Tabs */}

@@ -11,6 +11,9 @@ import Services from './pages/Services';
 import Companies from './pages/Companies';
 import Reports from './pages/Reports';
 import GeneralManagerReport from './pages/reports/GeneralManagerReport';
+import RevenuesReport from './pages/reports/RevenuesReport';
+import OrderedServicesReport from './pages/reports/OrderedServicesReport';
+import GuestStatisticsReport from './pages/reports/GuestStatisticsReport';
 import Finance from './pages/Finance';
 
 function App() {
@@ -40,6 +43,12 @@ function App() {
         return <Reports />;
       case 'Reports-GM':
         return <GeneralManagerReport />;
+      case 'Reports-Revenues':
+        return <RevenuesReport />;
+      case 'Reports-Services':
+        return <OrderedServicesReport />;
+      case 'Reports-Guests':
+        return <GuestStatisticsReport />;
       case 'Availability':
         return <Availability />;
       case 'Finance':

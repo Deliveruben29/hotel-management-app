@@ -77,17 +77,31 @@ export default function RoomRack() {
             {/* Header Toolbar */}
             <header className="view-header" style={{ flexShrink: 0, marginBottom: '1rem' }}>
                 <div>
-                    <h1>Room Rack</h1>
-                    <p className="subtitle">Visual timeline of room occupancy.</p>
+                    {/* Breadcrumbs */}
+                    <div style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '0.5rem', fontWeight: 500 }}>
+                        <span style={{ color: '#718096' }}>Jezebel Hotel Rhein</span>
+                        <span style={{ margin: '0 0.5rem' }}>/</span>
+                        <span style={{ background: '#FED7D7', padding: '2px 4px', borderRadius: '4px', color: 'black' }}>Test</span>
+                        <span style={{ margin: '0 0.5rem' }}>/</span>
+                        Room rack
+                    </div>
+                    <h1>Room rack</h1>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <button className="btn" onClick={handlePrevious} style={{ background: 'white', border: '1px solid #e2e8f0', padding: '0.5rem 1rem' }}>← Prev</button>
-                    <span style={{ fontWeight: 600, minWidth: '120px', textAlign: 'center' }}>
-                        {startDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                    </span>
-                    <button className="btn" onClick={handleNext} style={{ background: 'white', border: '1px solid #e2e8f0', padding: '0.5rem 1rem' }}>Next →</button>
-                    <button className="btn btn-primary" style={{ marginLeft: '1rem' }}>
-                        <span>+ New Booking</span>
+                    <div style={{ display: 'flex', background: 'white', border: '1px solid #cbd5e1', borderRadius: '4px', overflow: 'hidden' }}>
+                        <button className="btn" onClick={handlePrevious} style={{ background: 'transparent', border: 'none', borderRight: '1px solid #cbd5e1', padding: '0.5rem 0.8rem', cursor: 'pointer', color: '#4a5568' }}>&lt;</button>
+                        <span style={{ fontWeight: 600, minWidth: '100px', textAlign: 'center', padding: '0.5rem', fontSize: '0.9rem', color: '#2d3748', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {startDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        </span>
+                        <button className="btn" onClick={handleNext} style={{ background: 'transparent', border: 'none', borderLeft: '1px solid #cbd5e1', padding: '0.5rem 0.8rem', cursor: 'pointer', color: '#4a5568' }}>&gt;</button>
+                    </div>
+
+                    <button className="btn" style={{ background: 'transparent', border: 'none', color: '#4a5568', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                        <span style={{ fontSize: '1.2rem' }}>≡</span> Filter
+                    </button>
+
+                    <button className="btn" style={{ background: 'transparent', color: '#F6AD55', fontWeight: 600, border: 'none' }}>
+                        + New Booking
                     </button>
                 </div>
             </header>
