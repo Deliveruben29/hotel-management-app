@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { STATUS_COLORS, MOCK_COMPANIES, COUNTRIES } from '../data/mockData';
+import { STATUS_COLORS, MOCK_COMPANIES, COUNTRIES, MOCK_SERVICES } from '../data/mockData';
 import { INVOICE_TRANSLATIONS } from '../data/invoiceTranslations';
 import { useProperty } from '../context/PropertyContext';
 import { getVATRate, formatVATRate } from '../data/vatRates';
@@ -56,6 +56,15 @@ export const ReservationSummary = ({
     const [showInvoicePreview, setShowInvoicePreview] = useState(false);
     const [selectedLanguage, setSelectedLanguage] = useState('en');
     const [selectedFolioId, setSelectedFolioId] = useState(null);
+
+    // Add Charge Modal State
+    const [showAddChargeModal, setShowAddChargeModal] = useState(false);
+    const [chargeModalFolioId, setChargeModalFolioId] = useState(null);
+    const [chargeFormData, setChargeFormData] = useState({
+        serviceId: '',
+        quantity: 1,
+        dateOption: 'today' // 'today', 'specific', 'entire-stay'
+    });
     // END: State Definitions
 
     // Get active property for VAT calculation
@@ -143,24 +152,67 @@ export const ReservationSummary = ({
         // Safe check for event object if passed directly from onClick
         const effectiveFolioId = (typeof targetFolioId === 'object' || targetFolioId === undefined) ? 2 : targetFolioId;
 
-        const amount = prompt("Enter charge amount:");
-        if (amount) {
-            const desc = prompt("Enter description:", "Restaurant Bar");
-            const newCharge = {
+        // Open modal instead of prompt
+        setChargeModalFolioId(effectiveFolioId);
+        setShowAddChargeModal(true);
+    };
+
+    const handleSubmitCharge = () => {
+        const selectedService = MOCK_SERVICES.find(s => s.id === chargeFormData.serviceId);
+        if (!selectedService) {
+            alert('Please select a service');
+            return;
+        }
+
+        const quantity = parseInt(chargeFormData.quantity) || 1;
+        const newCharges = [];
+
+        // Calculate dates based on option
+        if (chargeFormData.dateOption === 'today') {
+            // Single charge today
+            newCharges.push({
                 id: `ext-${Date.now()}`,
                 date: new Date().toLocaleDateString(),
-                description: desc || "Extra Service",
-                amount: parseFloat(amount),
+                description: selectedService.name,
+                amount: selectedService.price * quantity,
                 type: 'charge',
-                folioId: effectiveFolioId
-            };
-            const newCharges = [...extraCharges, newCharge];
-            setExtraCharges(newCharges);
+                folioId: chargeModalFolioId
+            });
+        } else if (chargeFormData.dateOption === 'entire-stay') {
+            // One charge per night of stay
+            const start = new Date(activeReservation.arrival);
+            const end = new Date(activeReservation.departure);
+            const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
 
-            const updatedRes = { ...activeReservation, extraCharges: newCharges };
-            updateReservation(updatedRes);
-            setActiveReservation(updatedRes);
+            for (let i = 0; i < nights; i++) {
+                const date = new Date(start);
+                date.setDate(date.getDate() + i);
+
+                newCharges.push({
+                    id: `ext-${Date.now()}-${i}`,
+                    date: date.toLocaleDateString(),
+                    description: selectedService.name,
+                    amount: selectedService.price * quantity,
+                    type: 'charge',
+                    folioId: chargeModalFolioId
+                });
+            }
         }
+
+        const updatedCharges = [...extraCharges, ...newCharges];
+        setExtraCharges(updatedCharges);
+
+        const updatedRes = { ...activeReservation, extraCharges: updatedCharges };
+        updateReservation(updatedRes);
+        setActiveReservation(updatedRes);
+
+        // Reset and close
+        setShowAddChargeModal(false);
+        setChargeFormData({
+            serviceId: '',
+            quantity: 1,
+            dateOption: 'today'
+        });
     };
 
     const handleAddPayment = (targetFolioId = 1) => {
@@ -683,6 +735,150 @@ export const ReservationSummary = ({
     };
 
     // Render Language Selection Modal
+    // Render Add Charge Modal
+    const renderAddChargeModal = () => {
+        if (!showAddChargeModal) return null;
+
+        const selectedService = MOCK_SERVICES.find(s => s.id === chargeFormData.serviceId);
+
+        return (
+            <div style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                zIndex: 10000
+            }}>
+                <div style={{ background: 'white', padding: '2rem', borderRadius: '12px', width: '500px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                    <h3 style={{ marginTop: 0, color: '#2d3748', marginBottom: '0.5rem' }}>Add Charge to Folio #{chargeModalFolioId}</h3>
+                    <p style={{ fontSize: '0.9rem', color: '#718096', marginBottom: '1.5rem' }}>Select a service and specify how to apply it</p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        {/* Service Selection */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#4a5568', marginBottom: '0.5rem' }}>
+                                Service *
+                            </label>
+                            <select
+                                value={chargeFormData.serviceId}
+                                onChange={(e) => setChargeFormData({ ...chargeFormData, serviceId: e.target.value })}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.75rem',
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '6px',
+                                    fontSize: '0.95rem',
+                                    background: 'white'
+                                }}
+                            >
+                                <option value="">Select a service...</option>
+                                {MOCK_SERVICES.map(service => (
+                                    <option key={service.id} value={service.id}>
+                                        {service.name} - {service.price.toFixed(2)} {service.currency}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Quantity */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#4a5568', marginBottom: '0.5rem' }}>
+                                Quantity *
+                            </label>
+                            <input
+                                type="number"
+                                min="1"
+                                value={chargeFormData.quantity}
+                                onChange={(e) => setChargeFormData({ ...chargeFormData, quantity: e.target.value })}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.75rem',
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '6px',
+                                    fontSize: '0.95rem'
+                                }}
+                            />
+                        </div>
+
+                        {/* Date Application Option */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#4a5568', marginBottom: '0.5rem' }}>
+                                Apply to *
+                            </label>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', border: '2px solid ' + (chargeFormData.dateOption === 'today' ? '#3182ce' : '#e2e8f0'), borderRadius: '6px', cursor: 'pointer', background: chargeFormData.dateOption === 'today' ? '#ebf8ff' : 'white' }}>
+                                    <input
+                                        type="radio"
+                                        name="dateOption"
+                                        value="today"
+                                        checked={chargeFormData.dateOption === 'today'}
+                                        onChange={(e) => setChargeFormData({ ...chargeFormData, dateOption: e.target.value })}
+                                        style={{ transform: 'scale(1.2)' }}
+                                    />
+                                    <div>
+                                        <div style={{ fontWeight: 600, color: '#2d3748' }}>Today</div>
+                                        <div style={{ fontSize: '0.8rem', color: '#718096' }}>Apply once on current date</div>
+                                    </div>
+                                </label>
+
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', border: '2px solid ' + (chargeFormData.dateOption === 'entire-stay' ? '#3182ce' : '#e2e8f0'), borderRadius: '6px', cursor: 'pointer', background: chargeFormData.dateOption === 'entire-stay' ? '#ebf8ff' : 'white' }}>
+                                    <input
+                                        type="radio"
+                                        name="dateOption"
+                                        value="entire-stay"
+                                        checked={chargeFormData.dateOption === 'entire-stay'}
+                                        onChange={(e) => setChargeFormData({ ...chargeFormData, dateOption: e.target.value })}
+                                        style={{ transform: 'scale(1.2)' }}
+                                    />
+                                    <div>
+                                        <div style={{ fontWeight: 600, color: '#2d3748' }}>Entire Stay</div>
+                                        <div style={{ fontSize: '0.8rem', color: '#718096' }}>Apply once per night of stay</div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* Summary */}
+                        {selectedService && (
+                            <div style={{ background: '#f7fafc', padding: '1rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                                <div style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '0.5rem' }}>Total Amount:</div>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#2d3748' }}>
+                                    {chargeFormData.dateOption === 'entire-stay'
+                                        ? ((selectedService.price * chargeFormData.quantity * Math.ceil((new Date(activeReservation.departure) - new Date(activeReservation.arrival)) / (1000 * 60 * 60 * 24))).toFixed(2))
+                                        : ((selectedService.price * chargeFormData.quantity).toFixed(2))
+                                    } CHF
+                                </div>
+                                {chargeFormData.dateOption === 'entire-stay' && (
+                                    <div style={{ fontSize: '0.8rem', color: '#718096', marginTop: '0.25rem' }}>
+                                        {Math.ceil((new Date(activeReservation.departure) - new Date(activeReservation.arrival)) / (1000 * 60 * 60 * 24))} nights × {(selectedService.price * chargeFormData.quantity).toFixed(2)} CHF
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
+                        <button
+                            onClick={handleSubmitCharge}
+                            className="btn"
+                            style={{ flex: 1, background: '#3182ce', color: 'white', padding: '0.75rem', fontWeight: 600 }}
+                        >
+                            Add Charge
+                        </button>
+                        <button
+                            onClick={() => {
+                                setShowAddChargeModal(false);
+                                setChargeFormData({ serviceId: '', quantity: 1, dateOption: 'today' });
+                            }}
+                            className="btn"
+                            style={{ padding: '0.75rem 1.5rem', border: '1px solid #cbd5e1', background: 'white' }}
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const renderLanguageModal = () => {
         if (!showLanguageModal) return null;
 
@@ -977,6 +1173,7 @@ export const ReservationSummary = ({
 
             {renderLanguageModal()}
             {renderInvoicePreview()}
+            {renderAddChargeModal()}
 
             <header className="view-header" style={{ marginBottom: '1rem' }}>
                 <div>
