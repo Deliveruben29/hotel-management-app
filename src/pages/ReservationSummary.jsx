@@ -1452,7 +1452,13 @@ export const ReservationSummary = ({
         };
 
         // Calculate totals for selected folio only
-        const folioOnlyCharges = allCharges.filter(c => c.folioId === selectedFolioId || (selectedFolioId === 1 && !c.folioId));
+        // Apply folio assignments and filter for selected folio
+        const mappedCharges = allCharges.map(c => ({
+            ...c,
+            folioId: folioAssignments[c.id] !== undefined ? folioAssignments[c.id] : (c.folioId || 1)
+        }));
+
+        const folioOnlyCharges = mappedCharges.filter(c => c.folioId === selectedFolioId);
         const folioChargesOnly = folioOnlyCharges.filter(c => c.type === 'charge');
         const folioPaymentsOnly = folioOnlyCharges.filter(c => c.type === 'payment');
 

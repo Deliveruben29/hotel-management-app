@@ -376,6 +376,11 @@ body {
     display: none !important;
   }
 
+  /* CRITICAL: HIDE ALL DASHBOARD CONTENT EXCEPT INVOICE */
+  .dashboard-view>*:not(.invoice-preview-overlay) {
+    display: none !important;
+  }
+
   /* INVOICE OVERLAY BECOMES THE DOCUMENT */
   .invoice-preview-overlay {
     position: static !important;
