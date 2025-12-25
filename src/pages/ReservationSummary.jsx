@@ -53,6 +53,7 @@ export const ReservationSummary = ({
     const [showLanguageModal, setShowLanguageModal] = useState(false);
     const [showInvoicePreview, setShowInvoicePreview] = useState(false);
     const [selectedLanguage, setSelectedLanguage] = useState('en');
+    const [selectedFolioId, setSelectedFolioId] = useState(null);
     // END: State Definitions
 
     const isCheckInAvailable = activeReservation?.status === 'confirmed';
@@ -551,8 +552,9 @@ export const ReservationSummary = ({
         }
     };
 
-    const handlePrintPreInvoice = () => {
+    const handlePrintPreInvoice = (folioId) => {
         setShowDocumentsMenu(false);
+        setSelectedFolioId(folioId);
         setShowLanguageModal(true);
     };
 
@@ -714,8 +716,8 @@ export const ReservationSummary = ({
         const checkOutDate = new Date(activeReservation.checkOut);
         const nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
 
-        // Get billing address
-        const billing = billingDetailsMap[1] || {
+        // Get billing address for selected folio
+        const billing = billingDetailsMap[selectedFolioId] || {
             name: activeReservation.guestName,
             address: activeReservation.street || '',
             city: activeReservation.city || '',
@@ -723,11 +725,17 @@ export const ReservationSummary = ({
             country: activeReservation.country || ''
         };
 
-        // Calculate totals
-        const subtotal = totalCharges;
+        // Calculate totals for selected folio only
+        const folioOnlyCharges = allCharges.filter(c => c.folioId === selectedFolioId || (selectedFolioId === 1 && !c.folioId));
+        const folioChargesOnly = folioOnlyCharges.filter(c => c.type === 'charge');
+        const folioPaymentsOnly = folioOnlyCharges.filter(c => c.type === 'payment');
+
+        const subtotal = folioChargesOnly.reduce((sum, c) => sum + c.amount, 0);
         const taxRate = 0.077; // 7.7% Swiss VAT
         const taxAmount = subtotal * taxRate;
         const totalWithTax = subtotal + taxAmount;
+        const folioTotalPayments = folioPaymentsOnly.reduce((sum, c) => sum + c.amount, 0);
+        const folioBalance = totalWithTax - folioTotalPayments;
 
         return (
             <div className="invoice-preview-overlay" style={{
@@ -827,7 +835,7 @@ export const ReservationSummary = ({
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {allCharges.filter(c => c.type === 'charge').map((charge, idx) => (
+                                    {folioChargesOnly.map((charge, idx) => (
                                         <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
                                             <td style={{ padding: '0.75rem', color: '#2d3748' }}>{charge.description}</td>
                                             <td style={{ padding: '0.75rem', textAlign: 'center', color: '#4a5568' }}>1</td>
@@ -835,7 +843,7 @@ export const ReservationSummary = ({
                                             <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#2d3748' }}>{charge.amount.toFixed(2)}</td>
                                         </tr>
                                     ))}
-                                    {allCharges.filter(c => c.type === 'payment').map((payment, idx) => (
+                                    {folioPaymentsOnly.map((payment, idx) => (
                                         <tr key={`pay-${idx}`} style={{ borderBottom: '1px solid #e2e8f0' }}>
                                             <td style={{ padding: '0.75rem', color: '#2F855A' }}>{payment.description}</td>
                                             <td style={{ padding: '0.75rem', textAlign: 'center', color: '#2F855A' }}>1</td>
@@ -862,11 +870,11 @@ export const ReservationSummary = ({
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
                                     <span style={{ color: '#2F855A' }}>{t.payment}:</span>
-                                    <span style={{ fontWeight: 600, color: '#2F855A' }}>-{totalPayments.toFixed(2)} {t.currency}</span>
+                                    <span style={{ fontWeight: 600, color: '#2F855A' }}>-{folioTotalPayments.toFixed(2)} {t.currency}</span>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem 0', background: balance > 0 ? '#fff5f5' : '#f0fff4', marginTop: '0.5rem', paddingLeft: '1rem', paddingRight: '1rem', borderRadius: '6px' }}>
-                                    <span style={{ fontWeight: 700, color: balance > 0 ? '#c53030' : '#2F855A', fontSize: '1.1rem' }}>{t.balance}:</span>
-                                    <span style={{ fontWeight: 700, fontSize: '1.5rem', color: balance > 0 ? '#c53030' : '#2F855A' }}>{balance.toFixed(2)} {t.currency}</span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem 0', background: folioBalance > 0 ? '#fff5f5' : '#f0fff4', marginTop: '0.5rem', paddingLeft: '1rem', paddingRight: '1rem', borderRadius: '6px' }}>
+                                    <span style={{ fontWeight: 700, color: folioBalance > 0 ? '#c53030' : '#2F855A', fontSize: '1.1rem' }}>{t.balance}:</span>
+                                    <span style={{ fontWeight: 700, fontSize: '1.5rem', color: folioBalance > 0 ? '#c53030' : '#2F855A' }}>{folioBalance.toFixed(2)} {t.currency}</span>
                                 </div>
                             </div>
 
@@ -1101,115 +1109,6 @@ export const ReservationSummary = ({
                                     {balance.toFixed(2)} CHF
                                 </div>
                             </div>
-
-                            {/* Documents Dropdown */}
-                            <div style={{ position: 'relative' }}>
-                                <button
-                                    className="btn"
-                                    onClick={() => setShowDocumentsMenu(!showDocumentsMenu)}
-                                    onBlur={(e) => {
-                                        // Delay to allow click on menu items
-                                        setTimeout(() => setShowDocumentsMenu(false), 200);
-                                    }}
-                                    style={{
-                                        background: 'white',
-                                        border: '1px solid #cbd5e1',
-                                        padding: '0.6rem 1.2rem',
-                                        fontSize: '0.9rem',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem'
-                                    }}
-                                >
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                        <polyline points="14 2 14 8 20 8"></polyline>
-                                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                                        <polyline points="10 9 9 9 8 9"></polyline>
-                                    </svg>
-                                    Documents
-                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-                                        <path d="M6 9L1 4h10z" />
-                                    </svg>
-                                </button>
-
-                                {showDocumentsMenu && (
-                                    <div style={{
-                                        position: 'absolute',
-                                        right: 0,
-                                        top: '100%',
-                                        marginTop: '0.5rem',
-                                        background: 'white',
-                                        border: '1px solid #e2e8f0',
-                                        borderRadius: '6px',
-                                        boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                                        zIndex: 1000,
-                                        minWidth: '220px',
-                                        overflow: 'hidden'
-                                    }}>
-                                        <div
-                                            onClick={handleCloseToCredit}
-                                            className="hover-bg-gray"
-                                            style={{
-                                                padding: '0.75rem 1rem',
-                                                cursor: 'pointer',
-                                                borderBottom: '1px solid #f7fafc',
-                                                fontSize: '0.9rem',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.75rem'
-                                            }}
-                                        >
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                <rect x="2" y="5" width="20" height="14" rx="2"></rect>
-                                                <line x1="2" y1="10" x2="22" y2="10"></line>
-                                            </svg>
-                                            Close to Credit
-                                        </div>
-                                        <div
-                                            onClick={handlePrintPreInvoice}
-                                            className="hover-bg-gray"
-                                            style={{
-                                                padding: '0.75rem 1rem',
-                                                cursor: 'pointer',
-                                                borderBottom: '1px solid #f7fafc',
-                                                fontSize: '0.9rem',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.75rem'
-                                            }}
-                                        >
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                                                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                                                <rect x="6" y="14" width="12" height="8"></rect>
-                                            </svg>
-                                            Print Pre-Invoice
-                                        </div>
-                                        <div
-                                            onClick={handleEarlyCheckout}
-                                            className="hover-bg-gray"
-                                            style={{
-                                                padding: '0.75rem 1rem',
-                                                cursor: 'pointer',
-                                                fontSize: '0.9rem',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.75rem',
-                                                color: '#2F855A'
-                                            }}
-                                        >
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                                                <polyline points="16 17 21 12 16 7"></polyline>
-                                                <line x1="21" y1="12" x2="9" y2="12"></line>
-                                            </svg>
-                                            Early Check-out
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
                         </div>
                     </div>
 
@@ -1357,8 +1256,31 @@ export const ReservationSummary = ({
                                     {/* Folio Transactions Table */}
                                     <div style={{ background: 'white', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1 }}>
                                         <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div style={{ fontWeight: 600, color: '#2d3748' }}>{folio.name}</div>
-                                            <div style={{ fontSize: '0.85rem', color: '#718096' }}>#{folio.id}</div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                <div style={{ fontWeight: 600, color: '#2d3748' }}>{folio.name}</div>
+                                                <div style={{ fontSize: '0.85rem', color: '#718096' }}>#{folio.id}</div>
+                                            </div>
+                                            <button
+                                                onClick={() => handlePrintPreInvoice(folio.id)}
+                                                className="btn"
+                                                style={{
+                                                    background: 'white',
+                                                    border: '1px solid #cbd5e1',
+                                                    padding: '0.4rem 0.8rem',
+                                                    fontSize: '0.8rem',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.5rem'
+                                                }}
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                                </svg>
+                                                Documents
+                                            </button>
                                         </div>
 
                                         <div style={{ flex: 1, overflowY: 'auto' }}>
