@@ -954,6 +954,19 @@ export default function Reservations() {
                     <tbody>
                         {filteredReservations.map((res) => {
                             const statusStyle = STATUS_COLORS[res.status] || { bg: '#eee', text: '#555', label: res.status };
+
+                            // Calculate Live Balance
+                            const arrival = new Date(res.arrival);
+                            const departure = new Date(res.departure);
+                            const nights = Math.max(1, Math.ceil((departure - arrival) / (1000 * 60 * 60 * 24)));
+                            const roomTotal = nights * (res.rate || 0);
+
+                            const extras = res.extraCharges || [];
+                            const extraTotal = extras.filter(c => c.type === 'charge').reduce((s, c) => s + c.amount, 0);
+                            const paymentTotal = extras.filter(c => c.type === 'payment').reduce((s, c) => s + c.amount, 0);
+
+                            const liveBalance = (roomTotal + extraTotal - paymentTotal).toFixed(2);
+
                             return (
                                 <tr
                                     key={res.id}
@@ -979,13 +992,13 @@ export default function Reservations() {
                                     </td>
                                     <td style={{ ...cellStyle, fontFamily: 'monospace' }}>{res.id}</td>
                                     <td style={{ ...cellStyle, fontWeight: 600, color: '#2d3748' }}>{res.guestName}</td>
-                                    <td style={cellStyle}>{new Date(res.arrival).toLocaleDateString()}</td>
-                                    <td style={cellStyle}>{new Date(res.departure).toLocaleDateString()}</td>
+                                    <td style={cellStyle}>{arrival.toLocaleDateString()}</td>
+                                    <td style={cellStyle}>{departure.toLocaleDateString()}</td>
                                     <td style={cellStyle}>{res.source}</td>
                                     <td style={cellStyle}>{res.room}</td>
                                     <td style={cellStyle}>{res.type}</td>
-                                    <td style={{ ...cellStyle, fontFamily: 'monospace' }}>
-                                        {(res.rate * res.pax).toFixed(2)} CHF
+                                    <td style={{ ...cellStyle, fontFamily: 'monospace', color: Number(liveBalance) > 0.05 ? '#C53030' : '#2F855A', fontWeight: 600 }}>
+                                        {liveBalance} CHF
                                     </td>
                                 </tr>
                             );
