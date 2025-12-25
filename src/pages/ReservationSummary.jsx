@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { STATUS_COLORS, MOCK_COMPANIES, COUNTRIES } from '../data/mockData';
+import { INVOICE_TRANSLATIONS } from '../data/invoiceTranslations';
 
 export const ReservationSummary = ({
     activeReservation,
@@ -49,6 +50,9 @@ export const ReservationSummary = ({
 
     // Documents dropdown state
     const [showDocumentsMenu, setShowDocumentsMenu] = useState(false);
+    const [showLanguageModal, setShowLanguageModal] = useState(false);
+    const [showInvoicePreview, setShowInvoicePreview] = useState(false);
+    const [selectedLanguage, setSelectedLanguage] = useState('en');
     // END: State Definitions
 
     const isCheckInAvailable = activeReservation?.status === 'confirmed';
@@ -549,10 +553,21 @@ export const ReservationSummary = ({
 
     const handlePrintPreInvoice = () => {
         setShowDocumentsMenu(false);
-        setSuccessMessage('Pre-Invoice generated (demo)');
-        setShowSuccessMessage(true);
-        setTimeout(() => setShowSuccessMessage(false), 3000);
-        // Here you would typically generate and download a PDF
+        setShowLanguageModal(true);
+    };
+
+    const handleLanguageSelect = (lang) => {
+        setSelectedLanguage(lang);
+        setShowLanguageModal(false);
+        setShowInvoicePreview(true);
+    };
+
+    const handlePrintInvoice = () => {
+        window.print();
+    };
+
+    const handleCloseInvoice = () => {
+        setShowInvoicePreview(false);
     };
 
     const handleEarlyCheckout = () => {
@@ -622,6 +637,260 @@ export const ReservationSummary = ({
         );
     };
 
+    // Render Language Selection Modal
+    const renderLanguageModal = () => {
+        if (!showLanguageModal) return null;
+
+        const languages = [
+            { code: 'en', name: 'English', flag: '🇬🇧' },
+            { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+            { code: 'fr', name: 'Français', flag: '🇫🇷' },
+            { code: 'it', name: 'Italiano', flag: '🇮🇹' }
+        ];
+
+        return (
+            <div style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                zIndex: 10000
+            }}>
+                <div style={{ background: 'white', padding: '2rem', borderRadius: '12px', width: '400px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                    <h3 style={{ marginTop: 0, color: '#2d3748', marginBottom: '0.5rem' }}>Select Invoice Language</h3>
+                    <p style={{ fontSize: '0.9rem', color: '#718096', marginBottom: '1.5rem' }}>Choose the language for your pre-invoice</p>
+
+                    <div style={{ display: 'grid', gap: '0.75rem' }}>
+                        {languages.map(lang => (
+                            <button
+                                key={lang.code}
+                                onClick={() => handleLanguageSelect(lang.code)}
+                                style={{
+                                    padding: '1rem',
+                                    border: '2px solid #e2e8f0',
+                                    borderRadius: '8px',
+                                    background: 'white',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '1rem',
+                                    fontSize: '1rem',
+                                    transition: 'all 0.2s ease'
+                                }}
+                                onMouseOver={e => {
+                                    e.currentTarget.style.borderColor = '#3182ce';
+                                    e.currentTarget.style.background = '#ebf8ff';
+                                }}
+                                onMouseOut={e => {
+                                    e.currentTarget.style.borderColor = '#e2e8f0';
+                                    e.currentTarget.style.background = 'white';
+                                }}
+                            >
+                                <span style={{ fontSize: '2rem' }}>{lang.flag}</span>
+                                <span style={{ fontWeight: 600, color: '#2d3748' }}>{lang.name}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <button
+                        onClick={() => setShowLanguageModal(false)}
+                        style={{ marginTop: '1.5rem', width: '100%', padding: '0.75rem', border: '1px solid #cbd5e1', background: 'white', borderRadius: '6px', cursor: 'pointer' }}
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
+    // Render Invoice Preview
+    const renderInvoicePreview = () => {
+        if (!showInvoicePreview) return null;
+
+        const t = INVOICE_TRANSLATIONS[selectedLanguage];
+        const invoiceNumber = `INV-${activeReservation.confirmationNumber}`;
+        const todayDate = new Date().toLocaleDateString();
+
+        // Calculate nights
+        const checkInDate = new Date(activeReservation.checkIn);
+        const checkOutDate = new Date(activeReservation.checkOut);
+        const nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+
+        // Get billing address
+        const billing = billingDetailsMap[1] || {
+            name: activeReservation.guestName,
+            address: activeReservation.street || '',
+            city: activeReservation.city || '',
+            zip: activeReservation.postalCode || '',
+            country: activeReservation.country || ''
+        };
+
+        // Calculate totals
+        const subtotal = totalCharges;
+        const taxRate = 0.077; // 7.7% Swiss VAT
+        const taxAmount = subtotal * taxRate;
+        const totalWithTax = subtotal + taxAmount;
+
+        return (
+            <div className="invoice-preview-overlay" style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.8)',
+                zIndex: 10001,
+                overflow: 'auto',
+                padding: '2rem'
+            }}>
+                <div style={{ maxWidth: '900px', margin: '0 auto', background: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
+                    {/* Action Bar */}
+                    <div className="no-print" style={{ background: '#f7fafc', padding: '1rem 2rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.9rem', color: '#718096' }}>Preview Mode - {t.preInvoice}</span>
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                            <button onClick={handlePrintInvoice} className="btn btn-apaleo-primary" style={{ padding: '0.6rem 1.5rem' }}>
+                                🖨️ Print / Save PDF
+                            </button>
+                            <button onClick={handleCloseInvoice} className="btn" style={{ padding: '0.6rem 1.5rem', border: '1px solid #cbd5e1' }}>
+                                Close
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Invoice Content */}
+                    <div className="invoice-content" style={{ padding: '3rem', position: 'relative' }}>
+                        {/* Watermark */}
+                        <div className="watermark" style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%) rotate(-45deg)',
+                            fontSize: '5rem',
+                            fontWeight: 900,
+                            color: 'rgba(200, 200, 200, 0.15)',
+                            textTransform: 'uppercase',
+                            pointerEvents: 'none',
+                            userSelect: 'none',
+                            zIndex: 1,
+                            whiteSpace: 'nowrap'
+                        }}>
+                            {t.preInvoice}
+                        </div>
+
+                        {/* Header */}
+                        <div style={{ position: 'relative', zIndex: 2 }}>
+                            <div style={{ textAlign: 'center', marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '3px solid #3182ce' }}>
+                                <h1 style={{ fontSize: '2.5rem', fontWeight: 700, color: '#2d3748', margin: 0, marginBottom: '0.5rem' }}>
+                                    Hotel Management
+                                </h1>
+                                <p style={{ color: '#718096', margin: 0 }}>Premium Hospitality Services</p>
+                            </div>
+
+                            {/* Invoice Info & Billing Address */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
+                                <div>
+                                    <h3 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#718096', marginBottom: '0.75rem', letterSpacing: '0.5px' }}>
+                                        {t.invoice} {t.invoiceNumber}
+                                    </h3>
+                                    <p style={{ fontSize: '1.25rem', fontWeight: 600, color: '#2d3748', margin: 0, marginBottom: '1rem' }}>
+                                        {invoiceNumber}
+                                    </p>
+                                    <div style={{ fontSize: '0.9rem', color: '#4a5568', lineHeight: 1.8 }}>
+                                        <div><strong>{t.date}:</strong> {todayDate}</div>
+                                        <div><strong>{t.reservation}:</strong> #{activeReservation.confirmationNumber}</div>
+                                        <div><strong>{t.room}:</strong> {activeReservation.room}</div>
+                                        <div><strong>{t.checkIn}:</strong> {activeReservation.checkIn}</div>
+                                        <div><strong>{t.checkOut}:</strong> {activeReservation.checkOut}</div>
+                                        <div><strong>{t.nights}:</strong> {nights}</div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#718096', marginBottom: '0.75rem', letterSpacing: '0.5px' }}>
+                                        {t.billingAddress}
+                                    </h3>
+                                    <div style={{ fontSize: '0.95rem', color: '#2d3748', lineHeight: 1.8 }}>
+                                        <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{billing.name}</div>
+                                        <div>{billing.address}</div>
+                                        <div>{billing.zip} {billing.city}</div>
+                                        <div>{billing.country}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Charges Table */}
+                            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem' }}>
+                                <thead>
+                                    <tr style={{ background: '#f7fafc', borderBottom: '2px solid #cbd5e0' }}>
+                                        <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: '#718096', fontWeight: 600 }}>{t.description}</th>
+                                        <th style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.75rem', textTransform: 'uppercase', color: '#718096', fontWeight: 600 }}>{t.quantity}</th>
+                                        <th style={{ padding: '0.75rem', textAlign: 'right', fontSize: '0.75rem', textTransform: 'uppercase', color: '#718096', fontWeight: 600 }}>{t.unitPrice}</th>
+                                        <th style={{ padding: '0.75rem', textAlign: 'right', fontSize: '0.75rem', textTransform: 'uppercase', color: '#718096', fontWeight: 600 }}>{t.amount}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {allCharges.filter(c => c.type === 'charge').map((charge, idx) => (
+                                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                            <td style={{ padding: '0.75rem', color: '#2d3748' }}>{charge.description}</td>
+                                            <td style={{ padding: '0.75rem', textAlign: 'center', color: '#4a5568' }}>1</td>
+                                            <td style={{ padding: '0.75rem', textAlign: 'right', color: '#4a5568' }}>{charge.amount.toFixed(2)}</td>
+                                            <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#2d3748' }}>{charge.amount.toFixed(2)}</td>
+                                        </tr>
+                                    ))}
+                                    {allCharges.filter(c => c.type === 'payment').map((payment, idx) => (
+                                        <tr key={`pay-${idx}`} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                            <td style={{ padding: '0.75rem', color: '#2F855A' }}>{payment.description}</td>
+                                            <td style={{ padding: '0.75rem', textAlign: 'center', color: '#2F855A' }}>1</td>
+                                            <td style={{ padding: '0.75rem', textAlign: 'right', color: '#2F855A' }}>-{payment.amount.toFixed(2)}</td>
+                                            <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#2F855A' }}>-{payment.amount.toFixed(2)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+
+                            {/* Totals */}
+                            <div style={{ maxWidth: '400px', marginLeft: 'auto' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
+                                    <span style={{ color: '#4a5568' }}>{t.subtotal}:</span>
+                                    <span style={{ fontWeight: 600, color: '#2d3748' }}>{subtotal.toFixed(2)} {t.currency}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
+                                    <span style={{ color: '#4a5568' }}>{t.tax} (7.7%):</span>
+                                    <span style={{ fontWeight: 600, color: '#2d3748' }}>{taxAmount.toFixed(2)} {t.currency}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
+                                    <span style={{ color: '#4a5568' }}>{t.total}:</span>
+                                    <span style={{ fontWeight: 700, fontSize: '1.1rem', color: '#2d3748' }}>{totalWithTax.toFixed(2)} {t.currency}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
+                                    <span style={{ color: '#2F855A' }}>{t.payment}:</span>
+                                    <span style={{ fontWeight: 600, color: '#2F855A' }}>-{totalPayments.toFixed(2)} {t.currency}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem 0', background: balance > 0 ? '#fff5f5' : '#f0fff4', marginTop: '0.5rem', paddingLeft: '1rem', paddingRight: '1rem', borderRadius: '6px' }}>
+                                    <span style={{ fontWeight: 700, color: balance > 0 ? '#c53030' : '#2F855A', fontSize: '1.1rem' }}>{t.balance}:</span>
+                                    <span style={{ fontWeight: 700, fontSize: '1.5rem', color: balance > 0 ? '#c53030' : '#2F855A' }}>{balance.toFixed(2)} {t.currency}</span>
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div style={{ marginTop: '3rem', paddingTop: '2rem', borderTop: '1px solid #e2e8f0' }}>
+                                <div style={{ background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: '6px', padding: '1rem', marginBottom: '1.5rem' }}>
+                                    <p style={{ margin: 0, fontSize: '0.9rem', color: '#92400e', textAlign: 'center' }}>
+                                        ⚠️ {t.notOfficialInvoice}
+                                    </p>
+                                </div>
+                                <p style={{ textAlign: 'center', color: '#718096', fontSize: '0.9rem', margin: 0 }}>
+                                    {t.thankYou}
+                                </p>
+                                <p style={{ textAlign: 'center', color: '#a0aec0', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                                    {t.footerNote}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="dashboard-view fade-in">
             {renderRectifyModal()}
@@ -651,6 +920,9 @@ export const ReservationSummary = ({
                     {successMessage}
                 </div>
             )}
+
+            {renderLanguageModal()}
+            {renderInvoicePreview()}
 
             <header className="view-header" style={{ marginBottom: '1rem' }}>
                 <div>

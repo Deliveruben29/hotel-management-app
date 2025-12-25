@@ -341,3 +341,45 @@ body {
     opacity: 1;
   }
 }
+
+/* Print styles for invoice */
+@media print {
+
+  /* Hide everything except invoice content */
+  body * {
+    visibility: hidden;
+  }
+
+  .invoice-preview-overlay,
+  .invoice-preview-overlay * {
+    visibility: visible;
+  }
+
+  .invoice-preview-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: white !important;
+    padding: 0 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .invoice-content {
+    padding: 2rem !important;
+  }
+
+  /* Ensure proper page breaks */
+  .invoice-content {
+    page-break-inside: avoid;
+  }
+
+  /* Adjust watermark for print */
+  .watermark {
+    font-size: 6rem !important;
+    opacity: 0.08 !important;
+  }
+}
