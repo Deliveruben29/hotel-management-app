@@ -88,7 +88,7 @@ export const ReservationSummary = ({
         return charges;
     };
 
-    // Auto-apply Service Fee based on number of guests (one-time per stay)
+    // Auto-apply Service Fee based on number of guests PER NIGHT
     React.useEffect(() => {
         if (!activeReservation) return;
 
@@ -96,20 +96,32 @@ export const ReservationSummary = ({
         const hasServiceFee = extraCharges.some(c => c.description && c.description.includes('Service Fee'));
 
         if (!hasServiceFee && activeReservation.pax > 0) {
-            const SERVICE_FEE_PER_GUEST = 3.50; // CHF per guest (from MOCK_SERVICES)
-            const totalServiceFee = activeReservation.pax * SERVICE_FEE_PER_GUEST;
+            const SERVICE_FEE_PER_GUEST_PER_NIGHT = 3.50; // CHF per guest per night
+            const start = new Date(activeReservation.arrival);
+            const end = new Date(activeReservation.departure);
+            const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
 
-            const serviceFeeCharge = {
-                id: `service-fee-${activeReservation.id}`,
-                date: new Date(activeReservation.arrival).toLocaleDateString(),
-                description: `Service Fee (${activeReservation.pax} ${activeReservation.pax === 1 ? 'guest' : 'guests'})`,
-                amount: totalServiceFee,
-                type: 'charge',
-                folioId: 1, // Apply to Main Folio
-                autoApplied: true // Flag to identify auto-applied charges
-            };
+            const serviceFeeCharges = [];
 
-            setExtraCharges(prev => [...prev, serviceFeeCharge]);
+            // Create one Service Fee charge per night
+            for (let i = 0; i < nights; i++) {
+                const date = new Date(start);
+                date.setDate(date.getDate() + i);
+
+                const totalPerNight = activeReservation.pax * SERVICE_FEE_PER_GUEST_PER_NIGHT;
+
+                serviceFeeCharges.push({
+                    id: `service-fee-${activeReservation.id}-night-${i}`,
+                    date: date.toLocaleDateString(),
+                    description: `Service Fee (${activeReservation.pax} ${activeReservation.pax === 1 ? 'guest' : 'guests'})`,
+                    amount: totalPerNight,
+                    type: 'charge',
+                    folioId: 1, // Apply to Main Folio
+                    autoApplied: true // Flag to identify auto-applied charges
+                });
+            }
+
+            setExtraCharges(prev => [...prev, ...serviceFeeCharges]);
         }
     }, [activeReservation?.id]); // Only run when reservation changes
 
