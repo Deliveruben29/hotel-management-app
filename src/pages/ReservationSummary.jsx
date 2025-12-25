@@ -811,6 +811,28 @@ export const ReservationSummary = ({
         setTimeout(() => setShowSuccessMessage(false), 3000);
     };
 
+    const handleMainCheckOut = () => {
+        // Calculate global balance
+        const totalChargesVal = allCharges.reduce((sum, c) => sum + (c.type === 'charge' ? c.amount : 0), 0);
+        const totalPaymentsVal = allCharges.reduce((sum, c) => sum + (c.type === 'payment' ? c.amount : 0), 0);
+        const globalBalance = totalChargesVal - totalPaymentsVal;
+
+        if (Math.abs(globalBalance) > 0.05) {
+            alert(`Cannot check-out. Outstanding balance: ${globalBalance.toFixed(2)} CHF. Please settle all folios first.`);
+            return;
+        }
+
+        if (confirm("Proceed with Check-out? This will update the reservation status.")) {
+            const updatedRes = { ...activeReservation, status: 'Checked Out' };
+            updateReservation(updatedRes);
+            setActiveReservation(updatedRes);
+
+            setSuccessMessage("Reservation Successfully Checked Out");
+            setShowSuccessMessage(true);
+            setTimeout(() => setShowSuccessMessage(false), 3000);
+        }
+    };
+
     const handlePrintPreInvoice = (folioId) => {
         setOpenDocumentsForFolio(null);
         setSelectedFolioId(folioId);
@@ -1742,58 +1764,97 @@ export const ReservationSummary = ({
             {renderCardModal()}
 
             <header className="view-header" style={{ marginBottom: '1rem' }}>
-                <div>
-                    <div style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '0.5rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <div>
-                            <span style={{ cursor: 'pointer' }} onClick={onBack}>Reservations</span>
-                            <span style={{ margin: '0 0.5rem' }}>/</span>
-                            <span style={{ color: '#2d3748', fontWeight: 600 }}>{activeReservation.id}</span>
-                        </div>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.75rem',
-                            paddingLeft: '1rem',
-                            borderLeft: '2px solid #e2e8f0'
-                        }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3182ce" strokeWidth="2">
-                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                                </svg>
-                                <span style={{ color: '#4a5568', fontWeight: 500 }}>
-                                    {new Date(activeReservation.arrival).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                                </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                    <div>
+                        <div style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '0.5rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div>
+                                <span style={{ cursor: 'pointer' }} onClick={onBack}>Reservations</span>
+                                <span style={{ margin: '0 0.5rem' }}>/</span>
+                                <span style={{ color: '#2d3748', fontWeight: 600 }}>{activeReservation.id}</span>
                             </div>
-                            <span style={{ color: '#cbd5e0' }}>→</span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3182ce" strokeWidth="2">
-                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                                </svg>
-                                <span style={{ color: '#4a5568', fontWeight: 500 }}>
-                                    {new Date(activeReservation.departure).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                                </span>
-                            </div>
-                            <span style={{
-                                background: '#f7fafc',
-                                padding: '0.25rem 0.5rem',
-                                borderRadius: '4px',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                color: '#4a5568'
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                paddingLeft: '1rem',
+                                borderLeft: '2px solid #e2e8f0'
                             }}>
-                                {Math.ceil((new Date(activeReservation.departure) - new Date(activeReservation.arrival)) / (1000 * 60 * 60 * 24))} nights
-                            </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3182ce" strokeWidth="2">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                                    </svg>
+                                    <span style={{ color: '#4a5568', fontWeight: 500 }}>
+                                        {new Date(activeReservation.arrival).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                                    </span>
+                                </div>
+                                <span style={{ color: '#cbd5e0' }}>→</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3182ce" strokeWidth="2">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                                    </svg>
+                                    <span style={{ color: '#4a5568', fontWeight: 500 }}>
+                                        {new Date(activeReservation.departure).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                                    </span>
+                                </div>
+                                <span style={{
+                                    background: '#f7fafc',
+                                    padding: '0.25rem 0.5rem',
+                                    borderRadius: '4px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    color: '#4a5568'
+                                }}>
+                                    {Math.ceil((new Date(activeReservation.departure) - new Date(activeReservation.arrival)) / (1000 * 60 * 60 * 24))} nights
+                                </span>
+                            </div>
                         </div>
+                        <h1 style={{ fontSize: '1.75rem', fontWeight: 400, color: '#2d3748', margin: 0 }}>
+                            {activeTab === 'folio' ? 'Folio & Billing' : 'Reservation Details (New)'}
+                        </h1>
                     </div>
-                    <h1 style={{ fontSize: '1.75rem', fontWeight: 400, color: '#2d3748' }}>
-                        {activeTab === 'folio' ? 'Folio & Billing' : 'Reservation Details (New)'}
-                    </h1>
+
+                    <div className="no-print">
+                        {(() => {
+                            const bal = allCharges.reduce((sum, c) => sum + (c.type === 'charge' ? c.amount : -c.amount), 0);
+                            const canCheckOut = Math.abs(bal) <= 0.05;
+                            return (
+                                <button
+                                    onClick={handleMainCheckOut}
+                                    style={{
+                                        background: canCheckOut ? '#48BB78' : '#e2e8f0',
+                                        color: canCheckOut ? 'white' : '#a0aec0',
+                                        border: 'none',
+                                        padding: '0.75rem 1.5rem',
+                                        borderRadius: '8px',
+                                        fontWeight: 600,
+                                        fontSize: '1rem',
+                                        cursor: canCheckOut ? 'pointer' : 'not-allowed',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        boxShadow: canCheckOut ? '0 4px 10px rgba(72, 187, 120, 0.4)' : 'none',
+                                        transition: 'all 0.2s',
+                                        opacity: canCheckOut ? 1 : 0.7
+                                    }}
+                                    disabled={!canCheckOut}
+                                    title={canCheckOut ? "Complete Check-out" : `Outstanding Balance: ${bal.toFixed(2)}`}
+                                >
+                                    Check-out
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                        <polyline points="16 17 21 12 16 7"></polyline>
+                                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                                    </svg>
+                                </button>
+                            );
+                        })()}
+                    </div>
                 </div>
             </header>
 
