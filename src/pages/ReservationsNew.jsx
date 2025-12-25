@@ -7,6 +7,7 @@ export default function Reservations() {
     const { reservations, addReservation, updateReservationStatus, updateReservation } = useReservations(); // Use Global State
     const [view, setView] = useState('list'); // 'list' or 'create'
     const [filter, setFilter] = useState('all');
+    const [dateFilter, setDateFilter] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
 
     // Create Booking State
@@ -19,11 +20,33 @@ export default function Reservations() {
 
     // Filter Logic
     const filteredReservations = (reservations || []).filter(res => {
-        const matchesStatus = filter === 'all' || res.status === filter;
+        const matchesStatus = filter === 'all' ||
+            (res.status === 'confirmed' && filter === 'confirmed') ||
+            (res.status === 'IN_HOUSE' && filter === 'checked_in') || // Map old filter value to new
+            (res.status === 'in_house' && filter === 'checked_in') ||
+            (res.status === 'Checked Out' && filter === 'checked_out') ||
+            res.status === filter; // Fallback
+
         const matchesSearch = res.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             res.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
             res.room.includes(searchTerm);
-        return matchesStatus && matchesSearch;
+
+        let matchesDate = true;
+        if (dateFilter) {
+            const targetDate = new Date(dateFilter);
+            targetDate.setHours(0, 0, 0, 0);
+
+            const arrival = new Date(res.arrival); initialSet(arrival);
+            const departure = new Date(res.departure); initialSet(departure);
+
+            // Helper to ignore time
+            function initialSet(d) { d.setHours(0, 0, 0, 0); }
+
+            // Match if date falls within [Arrival, Departure] inclusive
+            matchesDate = targetDate >= arrival && targetDate <= departure;
+        }
+
+        return matchesStatus && matchesSearch && matchesDate;
     });
 
     // --- Sub-Components ---
@@ -379,6 +402,24 @@ export default function Reservations() {
                     <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1' }}>🔍</span>
                 </div>
 
+                {/* Date Filter */}
+                <div style={{ position: 'relative' }}>
+                    <input
+                        type="date"
+                        value={dateFilter}
+                        onChange={(e) => setDateFilter(e.target.value)}
+                        style={{
+                            padding: '0.55rem',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '4px',
+                            background: 'white',
+                            cursor: 'pointer',
+                            color: '#2d3748',
+                            fontFamily: 'inherit'
+                        }}
+                    />
+                </div>
+
                 {/* Real Filter Buttons */}
                 <select
                     value={filter}
@@ -408,6 +449,22 @@ export default function Reservations() {
                     }}>
                         Status: {STATUS_COLORS[filter]?.label || filter}
                         <span style={{ cursor: 'pointer' }} onClick={() => setFilter('all')}>✖</span>
+                    </span>
+                )}
+                {dateFilter && (
+                    <span style={{
+                        background: '#bee3f8',
+                        padding: '4px 12px',
+                        borderRadius: '999px',
+                        fontSize: '0.85rem',
+                        color: '#2c5282',
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                    }}>
+                        Date: {new Date(dateFilter).toLocaleDateString()}
+                        <span style={{ cursor: 'pointer' }} onClick={() => setDateFilter('')}>✖</span>
                     </span>
                 )}
             </div>
