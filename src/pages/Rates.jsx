@@ -327,10 +327,10 @@ export default function Rates() {
                                         value={formData.basePrice}
                                         onChange={e => setFormData({ ...formData, basePrice: e.target.value })}
                                         style={inputStyle}
-                                        placeholder="0 for base, -10 for %"
+                                        placeholder="0 (Standard)"
                                     />
                                     <div style={{ fontSize: '0.7rem', color: '#718096', marginTop: '2px' }}>
-                                        Absolute (+) or % (-). 0 = Base.
+                                        Add (+) or Discount % (-). 0 = Standard Base (100 CHF).
                                     </div>
                                 </div>
                             </div>
