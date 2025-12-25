@@ -955,7 +955,7 @@ export const ReservationSummary = ({
                                     <line x1="3" y1="10" x2="21" y2="10"></line>
                                 </svg>
                                 <span style={{ color: '#4a5568', fontWeight: 500 }}>
-                                    {new Date(activeReservation.checkIn).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                                    {new Date(activeReservation.arrival).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                                 </span>
                             </div>
                             <span style={{ color: '#cbd5e0' }}>→</span>
@@ -967,7 +967,7 @@ export const ReservationSummary = ({
                                     <line x1="3" y1="10" x2="21" y2="10"></line>
                                 </svg>
                                 <span style={{ color: '#4a5568', fontWeight: 500 }}>
-                                    {new Date(activeReservation.checkOut).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                                    {new Date(activeReservation.departure).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                                 </span>
                             </div>
                             <span style={{
@@ -978,7 +978,7 @@ export const ReservationSummary = ({
                                 fontWeight: 600,
                                 color: '#4a5568'
                             }}>
-                                {Math.ceil((new Date(activeReservation.checkOut) - new Date(activeReservation.checkIn)) / (1000 * 60 * 60 * 24))} nights
+                                {Math.ceil((new Date(activeReservation.departure) - new Date(activeReservation.arrival)) / (1000 * 60 * 60 * 24))} nights
                             </span>
                         </div>
                     </div>
