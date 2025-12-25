@@ -63,7 +63,8 @@ export const ReservationSummary = ({
     const [chargeFormData, setChargeFormData] = useState({
         serviceId: '',
         quantity: 1,
-        dateOption: 'today' // 'today', 'specific', 'entire-stay'
+        dateOption: 'today', // 'today', 'specific', 'entire-stay'
+        selectedDates: [] // Array of date strings for 'specific' option
     });
     // END: State Definitions
 
@@ -164,6 +165,12 @@ export const ReservationSummary = ({
             return;
         }
 
+        // Validate specific dates if that option is selected
+        if (chargeFormData.dateOption === 'specific' && chargeFormData.selectedDates.length === 0) {
+            alert('Please select at least one date');
+            return;
+        }
+
         const quantity = parseInt(chargeFormData.quantity) || 1;
         const newCharges = [];
 
@@ -177,6 +184,18 @@ export const ReservationSummary = ({
                 amount: selectedService.price * quantity,
                 type: 'charge',
                 folioId: chargeModalFolioId
+            });
+        } else if (chargeFormData.dateOption === 'specific') {
+            // One charge per selected date
+            chargeFormData.selectedDates.forEach((dateStr, index) => {
+                newCharges.push({
+                    id: `ext-${Date.now()}-${index}`,
+                    date: dateStr,
+                    description: selectedService.name,
+                    amount: selectedService.price * quantity,
+                    type: 'charge',
+                    folioId: chargeModalFolioId
+                });
             });
         } else if (chargeFormData.dateOption === 'entire-stay') {
             // One charge per night of stay
@@ -211,7 +230,8 @@ export const ReservationSummary = ({
         setChargeFormData({
             serviceId: '',
             quantity: 1,
-            dateOption: 'today'
+            dateOption: 'today',
+            selectedDates: []
         });
     };
 
@@ -819,6 +839,77 @@ export const ReservationSummary = ({
                                     </div>
                                 </label>
 
+                                <label style={{ display: 'flex', alignItems: 'start', gap: '0.75rem', padding: '0.75rem', border: '2px solid ' + (chargeFormData.dateOption === 'specific' ? '#3182ce' : '#e2e8f0'), borderRadius: '6px', cursor: 'pointer', background: chargeFormData.dateOption === 'specific' ? '#ebf8ff' : 'white' }}>
+                                    <input
+                                        type="radio"
+                                        name="dateOption"
+                                        value="specific"
+                                        checked={chargeFormData.dateOption === 'specific'}
+                                        onChange={(e) => setChargeFormData({ ...chargeFormData, dateOption: e.target.value, selectedDates: [] })}
+                                        style={{ transform: 'scale(1.2)', marginTop: '0.25rem' }}
+                                    />
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontWeight: 600, color: '#2d3748' }}>Specific Dates</div>
+                                        <div style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '0.75rem' }}>Select individual dates</div>
+
+                                        {chargeFormData.dateOption === 'specific' && (() => {
+                                            const start = new Date(activeReservation.arrival);
+                                            const end = new Date(activeReservation.departure);
+                                            const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+                                            const dates = [];
+
+                                            for (let i = 0; i < nights; i++) {
+                                                const date = new Date(start);
+                                                date.setDate(date.getDate() + i);
+                                                dates.push(date);
+                                            }
+
+                                            return (
+                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                                    {dates.map((date, index) => {
+                                                        const dateStr = date.toLocaleDateString();
+                                                        const isSelected = chargeFormData.selectedDates.includes(dateStr);
+
+                                                        return (
+                                                            <label
+                                                                key={index}
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.5rem',
+                                                                    padding: '0.5rem',
+                                                                    background: isSelected ? '#e6fffa' : '#f7fafc',
+                                                                    border: '1px solid ' + (isSelected ? '#38b2ac' : '#e2e8f0'),
+                                                                    borderRadius: '4px',
+                                                                    cursor: 'pointer',
+                                                                    fontSize: '0.85rem'
+                                                                }}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isSelected}
+                                                                    onChange={(e) => {
+                                                                        e.stopPropagation();
+                                                                        const newSelected = isSelected
+                                                                            ? chargeFormData.selectedDates.filter(d => d !== dateStr)
+                                                                            : [...chargeFormData.selectedDates, dateStr];
+                                                                        setChargeFormData({ ...chargeFormData, selectedDates: newSelected });
+                                                                    }}
+                                                                    style={{ transform: 'scale(1.1)' }}
+                                                                />
+                                                                <span style={{ fontWeight: isSelected ? 600 : 400, color: isSelected ? '#234e52' : '#4a5568' }}>
+                                                                    {date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                                                                </span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                </label>
+
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', border: '2px solid ' + (chargeFormData.dateOption === 'entire-stay' ? '#3182ce' : '#e2e8f0'), borderRadius: '6px', cursor: 'pointer', background: chargeFormData.dateOption === 'entire-stay' ? '#ebf8ff' : 'white' }}>
                                     <input
                                         type="radio"
@@ -843,12 +934,19 @@ export const ReservationSummary = ({
                                 <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#2d3748' }}>
                                     {chargeFormData.dateOption === 'entire-stay'
                                         ? ((selectedService.price * chargeFormData.quantity * Math.ceil((new Date(activeReservation.departure) - new Date(activeReservation.arrival)) / (1000 * 60 * 60 * 24))).toFixed(2))
-                                        : ((selectedService.price * chargeFormData.quantity).toFixed(2))
+                                        : chargeFormData.dateOption === 'specific'
+                                            ? ((selectedService.price * chargeFormData.quantity * chargeFormData.selectedDates.length).toFixed(2))
+                                            : ((selectedService.price * chargeFormData.quantity).toFixed(2))
                                     } CHF
                                 </div>
                                 {chargeFormData.dateOption === 'entire-stay' && (
                                     <div style={{ fontSize: '0.8rem', color: '#718096', marginTop: '0.25rem' }}>
                                         {Math.ceil((new Date(activeReservation.departure) - new Date(activeReservation.arrival)) / (1000 * 60 * 60 * 24))} nights × {(selectedService.price * chargeFormData.quantity).toFixed(2)} CHF
+                                    </div>
+                                )}
+                                {chargeFormData.dateOption === 'specific' && chargeFormData.selectedDates.length > 0 && (
+                                    <div style={{ fontSize: '0.8rem', color: '#718096', marginTop: '0.25rem' }}>
+                                        {chargeFormData.selectedDates.length} {chargeFormData.selectedDates.length === 1 ? 'date' : 'dates'} × {(selectedService.price * chargeFormData.quantity).toFixed(2)} CHF
                                     </div>
                                 )}
                             </div>
