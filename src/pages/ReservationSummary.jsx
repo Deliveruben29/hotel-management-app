@@ -88,6 +88,32 @@ export const ReservationSummary = ({
         return charges;
     };
 
+    // Auto-apply Service Fee based on number of guests (one-time per stay)
+    React.useEffect(() => {
+        if (!activeReservation) return;
+
+        // Check if Service Fee already exists
+        const hasServiceFee = extraCharges.some(c => c.description && c.description.includes('Service Fee'));
+
+        if (!hasServiceFee && activeReservation.pax > 0) {
+            const SERVICE_FEE_PER_GUEST = 3.50; // CHF per guest (from MOCK_SERVICES)
+            const totalServiceFee = activeReservation.pax * SERVICE_FEE_PER_GUEST;
+
+            const serviceFeeCharge = {
+                id: `service-fee-${activeReservation.id}`,
+                date: new Date(activeReservation.arrival).toLocaleDateString(),
+                description: `Service Fee (${activeReservation.pax} ${activeReservation.pax === 1 ? 'guest' : 'guests'})`,
+                amount: totalServiceFee,
+                type: 'charge',
+                folioId: 1, // Apply to Main Folio
+                autoApplied: true // Flag to identify auto-applied charges
+            };
+
+            setExtraCharges(prev => [...prev, serviceFeeCharge]);
+        }
+    }, [activeReservation?.id]); // Only run when reservation changes
+
+
     const allCharges = [...getDailyCharges(), ...extraCharges].map(c => ({
         ...c,
         folioId: folioAssignments[c.id] !== undefined ? folioAssignments[c.id] : c.folioId
