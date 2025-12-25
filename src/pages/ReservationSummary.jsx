@@ -56,6 +56,8 @@ export const ReservationSummary = ({
     const [showInvoicePreview, setShowInvoicePreview] = useState(false);
     const [selectedLanguage, setSelectedLanguage] = useState('en');
     const [invoiceType, setInvoiceType] = useState('standard'); // 'standard' or 'credit'
+    const [showVoidModal, setShowVoidModal] = useState(false);
+    const [voidData, setVoidData] = useState({ folioId: null, paymentId: null, reason: 'incorrect_charges', comment: '' });
     const [selectedFolioId, setSelectedFolioId] = useState(null);
 
     // Add Charge Modal State
@@ -781,18 +783,32 @@ export const ReservationSummary = ({
             return;
         }
 
-        if (confirm("Are you sure you want to VOID this invoice? This will revert the 'Transfer to AR' payment and re-open the folio balance.")) {
-            const newCharges = extraCharges.filter(c => c.id !== arPayment.id);
-            setExtraCharges(newCharges);
+        // Open Modal
+        setVoidData({
+            folioId: folioId,
+            paymentId: arPayment.id,
+            reason: 'incorrect_charges',
+            comment: ''
+        });
+        setShowVoidModal(true);
+    };
 
-            const updatedRes = { ...activeReservation, extraCharges: newCharges };
-            updateReservation(updatedRes);
-            setActiveReservation(updatedRes);
+    const handleConfirmVoid = () => {
+        if (!voidData.paymentId) return;
 
-            setSuccessMessage("Invoice voided. Folio re-opened.");
-            setShowSuccessMessage(true);
-            setTimeout(() => setShowSuccessMessage(false), 3000);
-        }
+        console.log(`Voiding Invoice. Reason: ${voidData.reason}, Comment: ${voidData.comment}`);
+
+        const newCharges = extraCharges.filter(c => c.id !== voidData.paymentId);
+        setExtraCharges(newCharges);
+
+        const updatedRes = { ...activeReservation, extraCharges: newCharges };
+        updateReservation(updatedRes);
+        setActiveReservation(updatedRes);
+
+        setShowVoidModal(false);
+        setSuccessMessage("Invoice voided successfully. Folio re-opened.");
+        setShowSuccessMessage(true);
+        setTimeout(() => setShowSuccessMessage(false), 3000);
     };
 
     const handlePrintPreInvoice = (folioId) => {
@@ -1270,6 +1286,86 @@ export const ReservationSummary = ({
         );
     };
 
+    // Render Void Confirmation Modal
+    const renderVoidModal = () => {
+        if (!showVoidModal) return null;
+
+        const reasons = [
+            { id: 'incorrect_charges', label: 'Incorrect Charges' },
+            { id: 'invoice_error', label: 'Invoice Details Error' },
+            { id: 'guest_request', label: 'Guest Request' },
+            { id: 'other', label: 'Other (Specify below)' }
+        ];
+
+        return (
+            <div style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                zIndex: 10000
+            }}>
+                <div style={{ background: 'white', padding: '2rem', borderRadius: '12px', width: '500px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                    <h3 style={{ marginTop: 0, color: '#e53e3e', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        ⚠️ Confirm Void Invoice
+                    </h3>
+                    <p style={{ fontSize: '0.9rem', color: '#718096', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+                        This action will revert the <strong>Transfer to Accounts Receivable</strong> payment and re-open the folio balance. Please specify a reason for this cancellation.
+                    </p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#4a5568', marginBottom: '0.25rem' }}>Reason for Voiding *</label>
+                        {reasons.map(r => (
+                            <label key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.5rem', borderRadius: '4px', background: voidData.reason === r.id ? '#fff5f5' : 'transparent' }}>
+                                <input
+                                    type="radio"
+                                    name="voidReason"
+                                    checked={voidData.reason === r.id}
+                                    onChange={() => setVoidData({ ...voidData, reason: r.id })}
+                                />
+                                <span style={{ color: voidData.reason === r.id ? '#c53030' : '#4a5568', fontWeight: voidData.reason === r.id ? 600 : 400 }}>{r.label}</span>
+                            </label>
+                        ))}
+                    </div>
+
+                    <div style={{ marginBottom: '2rem' }}>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#4a5568', marginBottom: '0.5rem' }}>
+                            Additional Comments {voidData.reason === 'other' ? '*' : '(Optional)'}
+                        </label>
+                        <textarea
+                            value={voidData.comment}
+                            onChange={(e) => setVoidData({ ...voidData, comment: e.target.value })}
+                            placeholder="Provide more context..."
+                            style={{ width: '100%', padding: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', minHeight: '80px', fontSize: '0.9rem' }}
+                        />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                        <button
+                            onClick={() => setShowVoidModal(false)}
+                            className="btn"
+                            style={{ padding: '0.75rem 1.5rem', border: '1px solid #cbd5e1', background: 'white' }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleConfirmVoid}
+                            disabled={voidData.reason === 'other' && !voidData.comment.trim()}
+                            className="btn"
+                            style={{
+                                padding: '0.75rem 1.5rem',
+                                background: (voidData.reason === 'other' && !voidData.comment.trim()) ? '#feb2b2' : '#e53e3e',
+                                color: 'white',
+                                fontWeight: 600,
+                                cursor: (voidData.reason === 'other' && !voidData.comment.trim()) ? 'not-allowed' : 'pointer'
+                            }}
+                        >
+                            Confirm Void
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const renderLanguageModal = () => {
         if (!showLanguageModal) return null;
 
@@ -1631,6 +1727,8 @@ export const ReservationSummary = ({
                 </div>
             )}
 
+
+            {renderVoidModal()}
             {renderLanguageModal()}
             {renderInvoicePreview()}
             {renderAddChargeModal()}
