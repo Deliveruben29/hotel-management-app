@@ -292,7 +292,7 @@ export default function PropertyManagement({ onClose }) {
                                         Website
                                     </label>
                                     <input
-                                        type="url"
+                                        type="text"
                                         value={formData.website}
                                         onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                                         style={{
