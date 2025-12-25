@@ -74,6 +74,10 @@ export const ReservationSummary = ({
         method: 'card', // 'card', 'cash', 'link', 'other'
         amount: 0
     });
+
+    // Credit Card Guarantee State
+    const [creditCard, setCreditCard] = useState(null); // null or { type, last4, expiry, holder, isVCC }
+    const [showCardModal, setShowCardModal] = useState(false);
     // END: State Definitions
 
     // Get active property for VAT calculation
@@ -1124,6 +1128,69 @@ export const ReservationSummary = ({
         );
     };
 
+    // Render Credit Card Modal
+    const renderCardModal = () => {
+        if (!showCardModal) return null;
+
+        const handleSaveCard = (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            setCreditCard({
+                type: 'Visa', // Mocked type detection
+                last4: formData.get('cardNumber').slice(-4),
+                expiry: formData.get('expiry'),
+                holder: formData.get('holder'),
+                isVCC: formData.get('isVCC') === 'on'
+            });
+            setShowCardModal(false);
+        };
+
+        return (
+            <div style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                zIndex: 10000
+            }}>
+                <div style={{ background: 'white', padding: '2rem', borderRadius: '12px', width: '450px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                    <h3 style={{ marginTop: 0, color: '#2d3748', marginBottom: '1.5rem' }}>Add Payment Guarantee</h3>
+
+                    <form onSubmit={handleSaveCard} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#4a5568', marginBottom: '0.5rem' }}>Cardholder Name</label>
+                            <input name="holder" required placeholder="John Doe" style={inputStyle} />
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#4a5568', marginBottom: '0.5rem' }}>Card Number</label>
+                            <input name="cardNumber" required placeholder="0000 0000 0000 0000" maxLength="19" style={{ ...inputStyle, fontFamily: 'monospace' }} />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#4a5568', marginBottom: '0.5rem' }}>Expiry Date</label>
+                                <input name="expiry" required placeholder="MM/YY" maxLength="5" style={inputStyle} />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#4a5568', marginBottom: '0.5rem' }}>CVC</label>
+                                <input name="cvc" required placeholder="123" maxLength="4" type="password" style={inputStyle} />
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                            <input type="checkbox" name="isVCC" id="isVCC" style={{ width: '16px', height: '16px' }} />
+                            <label htmlFor="isVCC" style={{ fontSize: '0.9rem', color: '#2d3748', cursor: 'pointer' }}>Mark as Virtual Credit Card (VCC)</label>
+                        </div>
+
+                        <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
+                            <button type="submit" className="btn" style={{ flex: 1, background: '#3182ce', color: 'white', padding: '0.75rem', fontWeight: 600 }}>Save Card</button>
+                            <button type="button" onClick={() => setShowCardModal(false)} className="btn" style={{ padding: '0.75rem 1.5rem', border: '1px solid #cbd5e1', background: 'white' }}>Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        );
+    };
+
     const renderLanguageModal = () => {
         if (!showLanguageModal) return null;
 
@@ -1420,6 +1487,7 @@ export const ReservationSummary = ({
             {renderInvoicePreview()}
             {renderAddChargeModal()}
             {renderAddPaymentModal()}
+            {renderCardModal()}
 
             <header className="view-header" style={{ marginBottom: '1rem' }}>
                 <div>
@@ -1580,6 +1648,14 @@ export const ReservationSummary = ({
                                 <label style={labelStyle}>Room</label>
                                 <div>{activeReservation.room}</div>
                             </div>
+                            <div>
+                                <label style={labelStyle}>Rate</label>
+                                <div style={{ fontWeight: 600 }}>{activeReservation.rate.toFixed(2)} CHF <span style={{ fontSize: '0.8rem', fontWeight: 400, color: '#718096' }}>/ night</span></div>
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Ext. Ref. ID</label>
+                                <div style={{ fontFamily: 'monospace', color: '#4a5568' }}>{activeReservation.source === 'Booking.com' ? '394857293' : activeReservation.source === 'Expedia' ? 'EXP-99283' : 'DIR-100293'}</div>
+                            </div>
                         </div>
 
                         <div style={{ background: '#f7fafc', padding: '1rem 1.5rem', borderTop: '1px solid #edf2f7' }}>
@@ -1591,6 +1667,39 @@ export const ReservationSummary = ({
 
                     {/* Actions Sidebar */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+                        {/* Payment Guarantee */}
+                        <div style={{ background: 'white', padding: '1rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                                <h3 style={{ fontSize: '0.75rem', color: '#718096', textTransform: 'uppercase', margin: 0, fontWeight: 700, letterSpacing: '0.5px' }}>Payment Guarantee</h3>
+                                {creditCard && (
+                                    <button onClick={() => setCreditCard(null)} style={{ color: '#e53e3e', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', lineHeight: 1 }} title="Remove Card">×</button>
+                                )}
+                            </div>
+
+                            {creditCard ? (
+                                <div style={{ background: creditCard.isVCC ? '#ebf8ff' : '#f7fafc', padding: '0.75rem', borderRadius: '6px', border: creditCard.isVCC ? '1px solid #bee3f8' : '1px solid #edf2f7' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                        <div style={{ fontSize: '1.2rem' }}>💳</div>
+                                        <div style={{ fontWeight: 600, color: '#2d3748' }}>•••• •••• •••• {creditCard.last4}</div>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ fontSize: '0.8rem', color: '#718096' }}>Exp: {creditCard.expiry}</div>
+                                        {creditCard.isVCC && (
+                                            <span style={{ fontSize: '0.7rem', background: '#3182ce', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>VCC</span>
+                                        )}
+                                    </div>
+                                    <div style={{ fontSize: '0.8rem', color: '#4a5568', marginTop: '0.25rem' }}>{creditCard.holder}</div>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => setShowCardModal(true)}
+                                    style={{ width: '100%', padding: '0.75rem', border: '1px dashed #cbd5e1', borderRadius: '6px', background: '#f8fafc', color: '#4a5568', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.9rem' }}
+                                >
+                                    <span>+</span> Add Credit Card
+                                </button>
+                            )}
+                        </div>
 
                         {/* Lifecycle Actions */}
                         <div style={{ background: 'white', padding: '1rem', borderRadius: '4px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
