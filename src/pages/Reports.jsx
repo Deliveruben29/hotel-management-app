@@ -1,8 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { MOCK_RESERVATIONS } from '../data/mockData';
 
 export default function Reports() {
+    const navigate = useNavigate();
     // Current date logic for defaults
-    const today = new Date().toLocaleDateString('en-GB'); // DD/MM/YYYY
+    const todayDate = new Date('2025-12-25'); // Simulating Today
+    const todayStr = todayDate.toLocaleDateString('en-GB'); // DD/MM/YYYY
+
+    // 1. Calculate Room Nights for Current Month (Dec 2025)
+    // Simplified: Just counting nights falling in this month for all reservations
+    const currentMonthStats = useMemo(() => {
+        let nights = 0;
+        const currentMonth = 11; // Dec (0-indexed)
+        const currentYear = 2025;
+
+        MOCK_RESERVATIONS.forEach(res => {
+            if (res.status === 'cancelled') return;
+
+            const start = new Date(res.arrival);
+            const end = new Date(res.departure);
+
+            // Iterate days
+            for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+                if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                    nights++;
+                }
+            }
+        });
+        return { nights };
+    }, []);
+
+    // 2. Calculate In-House Stats (Emergency Report)
+    const inHouseStats = useMemo(() => {
+        let adults = 0;
+        let children = 0; // Mock data doesn't explicitly allow children yet, assuming 0 or random for demo
+        let count = 0;
+
+        MOCK_RESERVATIONS.forEach(res => {
+            if (res.status === 'checked_in') {
+                count++;
+                adults += res.pax;
+                // children += res.children || 0; 
+            }
+        });
+
+        return { count, adults, children };
+    }, []);
+
 
     return (
         <main className="dashboard-view fade-in">
@@ -51,7 +96,7 @@ export default function Reports() {
                         <div>
                             <label style={labelStyle}>From*</label>
                             <div style={{ position: 'relative' }}>
-                                <input type="text" defaultValue={today} style={inputStyle} />
+                                <input type="text" defaultValue={todayStr} style={inputStyle} />
                                 <span style={iconStyle}>📅</span>
                             </div>
                         </div>
@@ -67,7 +112,7 @@ export default function Reports() {
                         <div>
                             <label style={labelStyle}>To*</label>
                             <div style={{ position: 'relative' }}>
-                                <input type="text" defaultValue={today} style={inputStyle} />
+                                <input type="text" defaultValue={todayStr} style={inputStyle} />
                                 <span style={iconStyle}>📅</span>
                             </div>
                         </div>
@@ -84,7 +129,7 @@ export default function Reports() {
                 {/* Room Nights */}
                 <ReportCard title="Room nights" icon="🛌">
                     <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-                        <div style={{ fontSize: '4rem', color: '#2d3748', lineHeight: 1 }}>6</div>
+                        <div style={{ fontSize: '4rem', color: '#2d3748', lineHeight: 1 }}>{currentMonthStats.nights}</div>
                         <div style={{ color: '#718096', fontSize: '0.9rem' }}>room nights consumed</div>
                     </div>
                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -137,22 +182,28 @@ export default function Reports() {
 
                     <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '1rem', padding: '1rem 0' }}>
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontWeight: 600, fontSize: '1.2rem' }}>6</div>
+                            <div style={{ fontWeight: 600, fontSize: '1.2rem' }}>{inHouseStats.adults + inHouseStats.children}</div>
                             <div style={{ fontSize: '0.8rem', color: '#718096' }}>Total</div>
                         </div>
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontWeight: 600, fontSize: '1.2rem' }}>6</div>
+                            <div style={{ fontWeight: 600, fontSize: '1.2rem' }}>{inHouseStats.adults}</div>
                             <div style={{ fontSize: '0.8rem', color: '#718096' }}>Adults</div>
                         </div>
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontWeight: 600, fontSize: '1.2rem' }}>0</div>
+                            <div style={{ fontWeight: 600, fontSize: '1.2rem' }}>{inHouseStats.children}</div>
                             <div style={{ fontSize: '0.8rem', color: '#718096' }}>Children</div>
                         </div>
                     </div>
                 </ReportCard>
 
                 {/* General Manager Report */}
-                <ReportCard title="General manager report" icon="📈" action="Check GM report" actionDull>
+                <ReportCard
+                    title="General manager report"
+                    icon="📈"
+                    action="Check GM report"
+                    onAction={() => navigate('/reports/gm')}
+                    actionDull
+                >
                     <p style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '1rem' }}>
                         Analyse key performance indicators for your property such as occupancy and RevPAR.
                     </p>
@@ -162,7 +213,13 @@ export default function Reports() {
                 </ReportCard>
 
                 {/* Revenues Reports */}
-                <ReportCard title="Revenues reports" icon="📊" action="Go to report" actionDull>
+                <ReportCard
+                    title="Revenues reports"
+                    icon="📊"
+                    action="Go to report"
+                    onAction={() => navigate('/reports/revenues')}
+                    actionDull
+                >
                     <p style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '1rem' }}>
                         Get an overview of your hotel's revenues.
                     </p>
@@ -175,7 +232,13 @@ export default function Reports() {
                 </ReportCard>
 
                 {/* Financial Reports */}
-                <ReportCard title="Financial reports" icon="💵" action="Accounting" actionDull>
+                <ReportCard
+                    title="Financial reports"
+                    icon="💵"
+                    action="Accounting"
+                    onAction={() => navigate('/finance')}
+                    actionDull
+                >
                     <p style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '1rem' }}>
                         For full financial reports, use the export functionality in the accounting section.
                     </p>
@@ -189,7 +252,7 @@ export default function Reports() {
     );
 }
 
-const ReportCard = ({ title, icon, action, actionDull, children }) => (
+const ReportCard = ({ title, icon, action, actionDull, onAction, children }) => (
     <div style={{
         background: 'white',
         borderRadius: 'var(--radius-lg)',
@@ -208,7 +271,11 @@ const ReportCard = ({ title, icon, action, actionDull, children }) => (
             {children}
         </div>
         {action && (
-            <button className={actionDull ? 'btn-dull' : 'btn-apaleo'} style={{ width: '100%', marginTop: '1.5rem' }}>
+            <button
+                className={actionDull ? 'btn-dull' : 'btn-apaleo'}
+                style={{ width: '100%', marginTop: '1.5rem' }}
+                onClick={onAction}
+            >
                 {action}
             </button>
         )}
@@ -228,13 +295,13 @@ const ReportCard = ({ title, icon, action, actionDull, children }) => (
             }
             .btn-dull {
                 background-color: #F6AD55; 
-                 color: white; 
+                color: white; 
                 border: none;
                 padding: 0.6rem;
                 border-radius: 4px;
                 font-weight: 600;
                 cursor: pointer;
-                 opacity: 0.9;
+                opacity: 0.9;
             }
         `}</style>
     </div>

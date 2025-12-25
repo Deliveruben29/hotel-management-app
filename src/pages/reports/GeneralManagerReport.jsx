@@ -1,37 +1,110 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { MOCK_RESERVATIONS, UNITS } from '../../data/mockData';
 
 export default function GeneralManagerReport() {
     const [viewType, setViewType] = useState('Aggregated'); // 'Aggregated' or 'Detailed'
 
-    // Mock Data based on screenshots
+    // Simulation Date: "Today" is 2025-12-25
+    const todayStr = '2025-12-25';
+    const reportDate = new Date(todayStr);
+
+    // --- Dynamic KPI Calculation ---
+    const stats = useMemo(() => {
+        const totalUnits = UNITS.length; // Max capacity
+
+        let dayStats = { sold: 0, revenue: 0, arrivals: 0, departures: 0, noshows: 0, cancellations: 0 };
+        let mtdStats = { sold: 0, revenue: 0, arrivals: 0, departures: 0, noshows: 0, cancellations: 0 };
+        let ytdStats = { sold: 0, revenue: 0, arrivals: 0, departures: 0, noshows: 0, cancellations: 0 };
+
+        const currentMonth = reportDate.getMonth();
+        const currentYear = reportDate.getFullYear();
+
+        MOCK_RESERVATIONS.forEach(res => {
+            const arr = new Date(res.arrival);
+            const dep = new Date(res.departure);
+            const created = new Date(res.id === 'RES-5543' ? '2025-12-20' : '2025-01-01'); // Mock creation date
+
+            // --- Day Stats (2025-12-25) ---
+            // Is Occupied or Arriving Today?
+            if (res.status === 'checked_in' || res.status === 'confirmed' || res.status === 'checked_out') {
+                if (todayStr === res.arrival) dayStats.arrivals++;
+                if (todayStr === res.departure) dayStats.departures++;
+
+                // Occupancy & Revenue for 'Today'
+                if (arr <= reportDate && dep > reportDate && res.status !== 'cancelled') {
+                    dayStats.sold++;
+                    dayStats.revenue += res.rate;
+                }
+            } else if (res.status === 'cancelled' && res.arrival === todayStr) {
+                dayStats.cancellations++;
+            }
+
+            // --- MTD Stats (Dec 2025) ---
+            if (res.status !== 'cancelled') {
+                // Count nights in this month
+                let loopDate = new Date(arr);
+                while (loopDate < dep) {
+                    if (loopDate.getMonth() === currentMonth && loopDate.getFullYear() === currentYear) {
+                        mtdStats.sold++;
+                        mtdStats.revenue += res.rate;
+                    }
+                    loopDate.setDate(loopDate.getDate() + 1);
+                }
+
+                if (arr.getMonth() === currentMonth && arr.getFullYear() === currentYear) mtdStats.arrivals++;
+                if (dep.getMonth() === currentMonth && dep.getFullYear() === currentYear) mtdStats.departures++;
+            }
+
+            // --- YTD Stats (2025) ---
+            if (res.status !== 'cancelled') {
+                // Count nights in this year
+                let loopDate = new Date(arr);
+                while (loopDate < dep) {
+                    if (loopDate.getFullYear() === currentYear) {
+                        ytdStats.sold++;
+                        ytdStats.revenue += res.rate;
+                    }
+                    loopDate.setDate(loopDate.getDate() + 1);
+                }
+                if (arr.getFullYear() === currentYear) ytdStats.arrivals++;
+            }
+
+        });
+
+        return { totalUnits, day: dayStats, mtd: mtdStats, ytd: ytdStats };
+    }, []);
+
     const occupancyData = [
-        { label: 'House Count', day: 80, mtd: 1680, ytd: 28400 },
-        { label: 'OOO', day: 0, mtd: 0, ytd: 0 },
-        { label: 'Sold Units', day: 4, mtd: 4, ytd: 4 },
-        { label: 'Unsold Units', day: 76, mtd: 1676, ytd: 28396 },
-        { label: 'Occupancy', day: '5 %', mtd: '0.24 %', ytd: '0.01 %' },
-        { label: 'Tentatively Blocked', day: 0, mtd: 0, ytd: 0 },
-        { label: 'Definitely Blocked', day: 0, mtd: 0, ytd: 0 },
+        { label: 'House Count', day: stats.totalUnits, mtd: stats.totalUnits * 31, ytd: stats.totalUnits * 365 }, // Simplified capacity
+        { label: 'Sold Units', day: stats.day.sold, mtd: stats.mtd.sold, ytd: stats.ytd.sold },
+        {
+            label: 'Occupancy',
+            day: ((stats.day.sold / stats.totalUnits) * 100).toFixed(1) + ' %',
+            mtd: ((stats.mtd.sold / (stats.totalUnits * 31)) * 100).toFixed(1) + ' %',
+            ytd: ((stats.ytd.sold / (stats.totalUnits * 365)) * 100).toFixed(1) + ' %'
+        },
     ];
 
     const guestFlowData = [
-        { label: 'Arrivals', day: 5, mtd: 5, ytd: 5 },
-        { label: 'Departures', day: 0, mtd: 0, ytd: 0 },
-        { label: 'No-shows', day: 0, mtd: 0, ytd: 0 },
-        { label: 'Cancellations', day: 0, mtd: 0, ytd: 0 },
+        { label: 'Arrivals', day: stats.day.arrivals, mtd: stats.mtd.arrivals, ytd: stats.ytd.arrivals },
+        { label: 'Departures', day: stats.day.departures, mtd: stats.mtd.departures, ytd: stats.ytd.departures },
+        { label: 'Cancellations', day: stats.day.cancellations, mtd: 0, ytd: 1 },
     ];
 
     const revenueData = [
-        { label: 'Net Unit Revenues KPI', day: 625.9, mtd: 625.9, ytd: 625.9 },
-        { label: 'Gross Unit Revenues KPI', day: 665, mtd: 665, ytd: 665 },
-        { label: 'Gross Accommodation Revenues KPI', day: 280, mtd: 280, ytd: 280 },
-        { label: 'Net Food & Beverages Revenues KPI', day: 559.67, mtd: 559.67, ytd: 559.67 },
-        { label: 'Gross Food & Beverages Revenues KPI', day: 605, mtd: 605, ytd: 605 },
-        { label: 'Net Other Revenues KPI', day: 42.09, mtd: 42.09, ytd: 42.09 },
-        { label: 'Gross Other Revenues KPI', day: 45.5, mtd: 45.5, ytd: 45.5 },
-        { label: 'Net ADR', day: 156.48, mtd: 156.48, ytd: 156.48 },
-        { label: 'Gross ADR', day: 166.25, mtd: 166.25, ytd: 166.25 },
-        { label: 'RevPAR', day: 7.82, mtd: 0.37, ytd: 0.02 },
+        { label: 'Gross Accommodation Revenues', day: stats.day.revenue.toFixed(2), mtd: stats.mtd.revenue.toFixed(2), ytd: stats.ytd.revenue.toFixed(2) },
+        {
+            label: 'Net ADR',
+            day: (stats.day.sold ? (stats.day.revenue / stats.day.sold) : 0).toFixed(2),
+            mtd: (stats.mtd.sold ? (stats.mtd.revenue / stats.mtd.sold) : 0).toFixed(2),
+            ytd: (stats.ytd.sold ? (stats.ytd.revenue / stats.ytd.sold) : 0).toFixed(2)
+        },
+        {
+            label: 'RevPAR',
+            day: (stats.day.revenue / stats.totalUnits).toFixed(2),
+            mtd: (stats.mtd.revenue / (stats.totalUnits * 31)).toFixed(2),
+            ytd: (stats.ytd.revenue / (stats.totalUnits * 365)).toFixed(2)
+        },
     ];
 
     return (

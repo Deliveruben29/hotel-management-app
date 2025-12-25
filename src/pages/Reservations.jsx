@@ -215,7 +215,8 @@ export default function Reservations() {
             </header>
 
             {/* Filters & Toolbar (Apaleo Style) */}
-            <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
+            {/* Filters & Toolbar (Apaleo Style) */}
+            <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 <div style={{ flex: 1, position: 'relative' }}>
                     <input
                         type="text"
@@ -227,32 +228,45 @@ export default function Reservations() {
                 <div style={{ flex: 2, position: 'relative' }}>
                     <input
                         type="text"
-                        placeholder="Search reservations"
+                        placeholder="Search guest, ID or room..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         style={inputStyle}
                     />
-                    <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1' }}>ℹ</span>
+                    <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#cbd5e1' }}>🔍</span>
                 </div>
-                <button style={{ background: 'white', border: 'none', fontWeight: 600, color: '#4a5568' }}>≡ Quick</button>
-                <button style={{ background: 'white', border: 'none', fontWeight: 600, color: '#4a5568' }}>≡ Advanced</button>
+
+                {/* Real Filter Buttons */}
+                <select
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    style={{ padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '4px', background: 'white', cursor: 'pointer' }}
+                >
+                    <option value="all">Show All Statuses</option>
+                    <option value="checked_in">In House</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="checked_out">Checked Out</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
             </div>
 
-            <div style={{ marginBottom: '1.5rem' }}>
-                <span style={{
-                    background: '#e2e8f0',
-                    padding: '4px 12px',
-                    borderRadius: '999px',
-                    fontSize: '0.85rem',
-                    color: '#4a5568',
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.5rem'
-                }}>
-                    Confirmed, In-house <span style={{ cursor: 'pointer' }}>✖</span>
-                </span>
-                <button style={{ background: 'none', border: 'none', color: '#4a5568', fontSize: '0.85rem', marginLeft: '1rem', cursor: 'pointer' }}>✖ Remove all filters</button>
+            <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.5rem' }}>
+                {filter !== 'all' && (
+                    <span style={{
+                        background: '#e2e8f0',
+                        padding: '4px 12px',
+                        borderRadius: '999px',
+                        fontSize: '0.85rem',
+                        color: '#4a5568',
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                    }}>
+                        Status: {STATUS_COLORS[filter]?.label || filter}
+                        <span style={{ cursor: 'pointer' }} onClick={() => setFilter('all')}>✖</span>
+                    </span>
+                )}
             </div>
 
             {/* Data Grid */}
@@ -263,31 +277,48 @@ export default function Reservations() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                     <thead>
                         <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                            <th style={headerStyle}>Status</th>
                             <th style={headerStyle}>Reservation #</th>
                             <th style={headerStyle}>Name</th>
                             <th style={headerStyle}>Arrival</th>
                             <th style={headerStyle}>Departure</th>
-                            <th style={headerStyle}>Created</th>
                             <th style={headerStyle}>Channel</th>
                             <th style={headerStyle}>Unit</th>
-                            <th style={headerStyle}>Guarantee</th>
+                            <th style={headerStyle}>Rate Plan</th>
                             <th style={headerStyle}>Balance</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredReservations.map((res) => (
-                            <tr key={res.id} style={{ borderBottom: '1px solid #edf2f7' }} className="table-row-hover">
-                                <td style={cellStyle}>{res.id}</td>
-                                <td style={{ ...cellStyle, fontWeight: 600, color: '#2d3748' }}>{res.guestName}</td>
-                                <td style={cellStyle}>{new Date(res.arrival).toLocaleDateString()}</td>
-                                <td style={cellStyle}>{new Date(res.departure).toLocaleDateString()}</td>
-                                <td style={cellStyle}>20/10/2025</td>
-                                <td style={cellStyle}>{res.source}</td>
-                                <td style={cellStyle}>{res.room}</td>
-                                <td style={cellStyle}>CC</td>
-                                <td style={cellStyle}>0.00</td>
-                            </tr>
-                        ))}
+                        {filteredReservations.map((res) => {
+                            const statusStyle = STATUS_COLORS[res.status] || { bg: '#eee', text: '#555', label: res.status };
+                            return (
+                                <tr key={res.id} style={{ borderBottom: '1px solid #edf2f7' }} className="table-row-hover">
+                                    <td style={cellStyle}>
+                                        <span style={{
+                                            backgroundColor: statusStyle.bg,
+                                            color: statusStyle.text,
+                                            padding: '2px 8px',
+                                            borderRadius: '4px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 600,
+                                            textTransform: 'uppercase'
+                                        }}>
+                                            {statusStyle.label}
+                                        </span>
+                                    </td>
+                                    <td style={{ ...cellStyle, fontFamily: 'monospace' }}>{res.id}</td>
+                                    <td style={{ ...cellStyle, fontWeight: 600, color: '#2d3748' }}>{res.guestName}</td>
+                                    <td style={cellStyle}>{new Date(res.arrival).toLocaleDateString()}</td>
+                                    <td style={cellStyle}>{new Date(res.departure).toLocaleDateString()}</td>
+                                    <td style={cellStyle}>{res.source}</td>
+                                    <td style={cellStyle}>{res.room}</td>
+                                    <td style={cellStyle}>{res.type}</td>
+                                    <td style={{ ...cellStyle, fontFamily: 'monospace' }}>
+                                        {(res.rate * res.pax).toFixed(2)} CHF
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
                 {filteredReservations.length === 0 && (

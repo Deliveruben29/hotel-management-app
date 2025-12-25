@@ -1,37 +1,64 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 
 // Enhanced nav structure to support submenus
 const navItems = [
-    { id: 'Dashboard', label: 'Dashboard', icon: '⊞' },
-    { id: 'Reservations', label: 'Reservations', icon: '📅' },
-    { id: 'Rack', label: 'Room rack', icon: '🛏' },
-    { id: 'Housekeeping', label: 'Housekeeping', icon: '🧹' },
-    { id: 'Availability', label: 'Availability', icon: '✓' },
-    { id: 'Inventory', label: 'Inventory', icon: '📦' },
-    { id: 'Rates', label: 'Rates', icon: '🏷' },
-    { id: 'Services', label: 'Services', icon: '🛎' },
-    { id: 'Companies', label: 'Companies', icon: '🏢' },
-    { id: 'Finance', label: 'Finance', icon: '💰' },
+    { path: '/', label: 'Dashboard', icon: '⊞' },
+    { path: '/reservations', label: 'Reservations', icon: '📅' },
+    { path: '/rack', label: 'Room rack', icon: '🛏' },
+    { path: '/housekeeping', label: 'Housekeeping', icon: '🧹' },
+    { path: '/availability', label: 'Availability', icon: '✓' },
+    { path: '/inventory', label: 'Inventory', icon: '📦' },
+    { path: '/rates', label: 'Rates', icon: '🏷' },
+    { path: '/services', label: 'Services', icon: '🛎' },
+    { path: '/companies', label: 'Companies', icon: '🏢' },
+    { path: '/finance', label: 'Finance', icon: '💰' },
     {
-        id: 'Reports',
+        path: '/reports',
         label: 'Reports',
         icon: '📊',
         children: [
-            { id: 'Reports-Overview', label: 'Overview' },
-            { id: 'Reports-GM', label: 'General Manager' },
-            { id: 'Reports-Revenues', label: 'Revenues' },
-            { id: 'Reports-Services', label: 'Ordered services' },
-            { id: 'Reports-Guests', label: 'Guest statistics' }
+            { path: '/reports/overview', label: 'Overview' },
+            { path: '/reports/gm', label: 'General Manager' },
+            { path: '/reports/revenues', label: 'Revenues' },
+            { path: '/reports/services', label: 'Ordered services' },
+            { path: '/reports/guests', label: 'Guest statistics' }
         ]
     },
-    { id: 'Audit', label: 'Audit / Logs', icon: '📋' },
-    { id: 'Settings', label: 'Settings', icon: '⚙' }
+    { path: '/audit', label: 'Audit / Logs', icon: '📋' },
+    { path: '/settings', label: 'Settings', icon: '⚙' }
 ];
 
-export default function Sidebar({ activeTab, onNavigate }) {
-    // State to track expanded items. For now, we just auto-expand if activeTab is a child
-    // or if the user clicks the parent. 
-    // Simple logic: If activeTab starts with "Reports", expand Reports.
+export default function Sidebar() {
+    const location = useLocation();
+    const [expandedGroups, setExpandedGroups] = useState({});
+
+    // Auto-expand if active is child or self
+    useEffect(() => {
+        const newExpanded = { ...expandedGroups };
+        let hasChanges = false;
+
+        navItems.forEach(item => {
+            if (item.children) {
+                const isChildActive = item.children.some(c => location.pathname === c.path);
+                const isParentActive = location.pathname === item.path;
+
+                if ((isChildActive || isParentActive) && !newExpanded[item.path]) {
+                    newExpanded[item.path] = true;
+                    hasChanges = true;
+                }
+            }
+        });
+
+        if (hasChanges) {
+            setExpandedGroups(newExpanded);
+        }
+    }, [location.pathname]);
+
+    const toggleGroup = (e, path) => {
+        e.preventDefault();
+        setExpandedGroups(prev => ({ ...prev, [path]: !prev[path] }));
+    };
 
     return (
         <aside className="sidebar">
@@ -63,42 +90,46 @@ export default function Sidebar({ activeTab, onNavigate }) {
 
             <nav className="sidebar-nav">
                 {navItems.map((item) => {
-                    const isActive = activeTab === item.id || (item.children && item.children.some(c => c.id === activeTab));
-                    const isExpanded = isActive && item.children; // Simple expansion logic
+                    const hasChildren = item.children && item.children.length > 0;
+                    const isExpanded = expandedGroups[item.path];
+
+                    // We only want 'active' class on parent if it matches exactly OR one of its children is active?
+                    // Typically NavLink 'end' prop handles exact matching.
+                    // But for the parent of a submenu, we might want it highlighted if a child is active.
+                    // NavLink automatically adds 'active' class if url matches (partial default for start).
 
                     return (
-                        <div key={item.id}>
-                            <a
-                                href="#"
-                                className={`nav-item ${isActive ? 'active' : ''}`}
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    onNavigate(item.id);
-                                }}
+                        <div key={item.path}>
+                            <NavLink
+                                to={item.path}
+                                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                                end={!hasChildren} // If it has children, /reports should be active for /reports/gm too? Yes, usually.
                                 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}
                             >
                                 <span style={{ width: '20px', textAlign: 'center' }}>{item.icon}</span>
                                 {item.label}
-                                {item.children && <span style={{ marginLeft: 'auto', fontSize: '0.8rem' }}>{isExpanded ? '▼' : '▶'}</span>}
-                            </a>
+                                {hasChildren && (
+                                    <span
+                                        style={{ marginLeft: 'auto', fontSize: '0.8rem' }}
+                                        onClick={(e) => toggleGroup(e, item.path)}
+                                    >
+                                        {isExpanded ? '▼' : '▶'}
+                                    </span>
+                                )}
+                            </NavLink>
 
                             {/* Submenu */}
-                            {item.children && isExpanded && (
-                                <div className="submenu" style={{ paddingLeft: '2.5rem', background: 'rgba(0,0,0,0.1)' }}>
+                            {hasChildren && isExpanded && (
+                                <div className="submenu" style={{ paddingLeft: '2.5rem', background: '#F7FAFC' }}> {/* Lighter background */}
                                     {item.children.map(child => (
-                                        <a
-                                            key={child.id}
-                                            href="#"
-                                            className={`nav-item ${activeTab === child.id ? 'active' : ''}`}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                e.preventDefault();
-                                                onNavigate(child.id);
-                                            }}
-                                            style={{ fontSize: '0.9rem', padding: '0.5rem 1rem' }}
+                                        <NavLink
+                                            key={child.path}
+                                            to={child.path}
+                                            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                                            style={{ fontSize: '0.9rem', padding: '0.5rem 1rem', color: '#4A5568' }}
                                         >
                                             {child.label}
-                                        </a>
+                                        </NavLink>
                                     ))}
                                 </div>
                             )}
@@ -108,15 +139,16 @@ export default function Sidebar({ activeTab, onNavigate }) {
             </nav>
             <style>{`
                 .submenu .nav-item {
-                    color: #a0aec0;
+                    color: #4A5568 !important; /* Force dark text for visibility */
                 }
                 .submenu .nav-item:hover {
-                    color: white;
+                    color: var(--color-primary) !important;
+                    background-color: #EDF2F7;
                 }
                 .submenu .nav-item.active {
-                    color: #F6AD55;
-                    font-weight: 500;
-                    background: transparent;
+                    color: var(--color-primary) !important;
+                    font-weight: 600;
+                    background: #E6FFFA !important; /* Light teal bg for active subitem */
                 }
             `}</style>
         </aside>

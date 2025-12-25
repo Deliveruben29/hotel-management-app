@@ -1,7 +1,10 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UNITS, UNIT_GROUPS, MOCK_RESERVATIONS, STATUS_COLORS } from '../data/mockData';
 
 export default function RoomRack() {
+    const navigate = useNavigate();
+
     // State for timeline control
     const [startDate, setStartDate] = useState(new Date('2025-12-19')); // Default to match mock data
     const daysToShow = 14;
@@ -27,6 +30,10 @@ export default function RoomRack() {
             units: UNITS.filter(u => u.groupId === group.id)
         })).filter(g => g.units.length > 0);
     }, []);
+
+    // Local state for reservations to support Drag & Drop
+    const [reservations, setReservations] = useState(MOCK_RESERVATIONS);
+    const [draggedRes, setDraggedRes] = useState(null);
 
     // Helper to position reservations
     const getReservationStyle = (res) => {
@@ -54,10 +61,66 @@ export default function RoomRack() {
             overflow: 'hidden',
             whiteSpace: 'nowrap',
             fontWeight: 600,
-            cursor: 'pointer',
+            cursor: 'grab',
             zIndex: 10,
+            opacity: draggedRes?.id === res.id ? 0.5 : 1,
             boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
         };
+    };
+
+    // --- Drag & Drop Handlers ---
+    const handleDragStart = (e, res) => {
+        setDraggedRes(res);
+        e.dataTransfer.effectAllowed = 'move';
+        // Optional: Set custom drag image if needed
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault(); // Allow dropping
+        e.dataTransfer.dropEffect = 'move';
+    };
+
+    const handleDrop = (e, targetRoom) => {
+        e.preventDefault();
+        if (!draggedRes) return;
+
+        // Calculate new date based on X position
+        const rowRect = e.currentTarget.getBoundingClientRect();
+        const clickX = e.clientX - rowRect.left; // X relative to the row start
+        const dayIndex = Math.floor(clickX / cellWidth);
+
+        // Calculate new Start Date
+        const newStart = new Date(startDate);
+        newStart.setDate(startDate.getDate() + dayIndex);
+
+        // Calculate new End Date (preserving duration)
+        const oldStart = new Date(draggedRes.arrival);
+        const oldEnd = new Date(draggedRes.departure);
+        const durationMs = oldEnd.getTime() - oldStart.getTime();
+        const newEnd = new Date(newStart.getTime() + durationMs);
+
+        // Format dates as YYYY-MM-DD
+        const toYMD = (d) => {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        const updatedReservations = reservations.map(r => {
+            if (r.id === draggedRes.id) {
+                return {
+                    ...r,
+                    room: targetRoom,
+                    arrival: toYMD(newStart),
+                    departure: toYMD(newEnd)
+                };
+            }
+            return r;
+        });
+
+        setReservations(updatedReservations);
+        setDraggedRes(null);
     };
 
     const handlePrevious = () => {
@@ -72,8 +135,36 @@ export default function RoomRack() {
         setStartDate(d);
     };
 
+    // Scroll Sync Refs
+    const sidebarRef = React.useRef(null);
+    const timelineRef = React.useRef(null);
+
+    const handleScroll = (e) => {
+        if (sidebarRef.current && timelineRef.current) {
+            const scrollTop = e.target.scrollTop;
+            if (e.target === timelineRef.current) {
+                sidebarRef.current.scrollTop = scrollTop;
+            } else {
+                timelineRef.current.scrollTop = scrollTop;
+            }
+        }
+    };
+
+    const handleToday = () => {
+        const today = new Date('2025-12-25');
+        // Center view on today - 2 days
+        const newStart = new Date(today);
+        newStart.setDate(today.getDate() - 2);
+        setStartDate(newStart);
+    };
+
+
+
+    // State for Side Panel
+    const [selectedRes, setSelectedRes] = useState(null);
+
     return (
-        <main className="dashboard-view fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        <main className="dashboard-view fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', position: 'relative' }}>
             {/* Header Toolbar */}
             <header className="view-header" style={{ flexShrink: 0, marginBottom: '1rem' }}>
                 <div>
@@ -88,6 +179,14 @@ export default function RoomRack() {
                     <h1>Room rack</h1>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <button
+                        className="btn"
+                        onClick={handleToday}
+                        style={{ background: 'white', border: '1px solid #cbd5e1', color: '#4a5568', marginRight: '0.5rem' }}
+                    >
+                        Today
+                    </button>
+
                     <div style={{ display: 'flex', background: 'white', border: '1px solid #cbd5e1', borderRadius: '4px', overflow: 'hidden' }}>
                         <button className="btn" onClick={handlePrevious} style={{ background: 'transparent', border: 'none', borderRight: '1px solid #cbd5e1', padding: '0.5rem 0.8rem', cursor: 'pointer', color: '#4a5568' }}>&lt;</button>
                         <span style={{ fontWeight: 600, minWidth: '100px', textAlign: 'center', padding: '0.5rem', fontSize: '0.9rem', color: '#2d3748', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -100,7 +199,7 @@ export default function RoomRack() {
                         <span style={{ fontSize: '1.2rem' }}>≡</span> Filter
                     </button>
 
-                    <button className="btn" style={{ background: 'transparent', color: '#F6AD55', fontWeight: 600, border: 'none' }}>
+                    <button className="btn" onClick={() => navigate('/reservations')} style={{ background: 'transparent', color: '#F6AD55', fontWeight: 600, border: 'none' }}>
                         + New Booking
                     </button>
                 </div>
@@ -118,13 +217,16 @@ export default function RoomRack() {
                 position: 'relative'
             }}>
                 {/* Fixed Room Column */}
-                <div style={{ width: '200px', flexShrink: 0, borderRight: '1px solid #e2e8f0', zIndex: 30, background: 'white' }}>
+                <div
+                    ref={sidebarRef}
+                    style={{ width: '200px', flexShrink: 0, borderRight: '1px solid #e2e8f0', zIndex: 30, background: 'white', overflow: 'hidden', height: '100%' }}
+                >
                     {/* Header Corner */}
                     <div style={{ height: '50px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', padding: '1rem', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase' }}>
                         Unit
                     </div>
                     {/* Room Rows - Sidebar */}
-                    <div className="custom-scrollbar" style={{ overflowY: 'hidden' }}> {/* Synced scroll handled by layout container usually, simple version here */}
+                    <div style={{ paddingBottom: '20px' }}> {/* Padding for scrollbar offset */}
                         {unitsByGroup.map(group => (
                             <div key={group.id}>
                                 {/* Group Header */}
@@ -137,7 +239,8 @@ export default function RoomRack() {
                                     borderBottom: '1px solid #e2e8f0',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.5rem'
+                                    gap: '0.5rem',
+                                    height: '30px' // explicit height matching spacing
                                 }}>
                                     <div style={{ width: '10px', height: '10px', backgroundColor: group.color, borderRadius: '2px' }}></div>
                                     {group.name}
@@ -162,13 +265,18 @@ export default function RoomRack() {
                 </div>
 
                 {/* Scrollable Timeline */}
-                <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto' }} className="timeline-scroll-area">
-                    <div style={{ minWidth: `${dates.length * cellWidth}px` }}>
+                <div
+                    ref={timelineRef}
+                    onScroll={handleScroll}
+                    style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', height: '100%' }}
+                    className="timeline-scroll-area"
+                >
+                    <div style={{ minWidth: `${dates.length * cellWidth}px`, paddingBottom: '20px' }}>
                         {/* Dates Header */}
                         <div style={{ height: '50px', display: 'flex', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', position: 'sticky', top: 0, zIndex: 20 }}>
                             {dates.map((date, i) => {
                                 const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                                const isToday = date.toDateString() === new Date().toDateString();
+                                const isToday = date.toDateString() === new Date('2025-12-25').toDateString();
                                 return (
                                     <div key={i} style={{
                                         width: `${cellWidth}px`,
@@ -178,7 +286,8 @@ export default function RoomRack() {
                                         flexDirection: 'column',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        background: isToday ? 'var(--color-primary-light)' : (isWeekend ? 'rgba(0,0,0,0.02)' : 'transparent')
+                                        background: isToday ? '#E6FFFA' : (isWeekend ? 'rgba(0,0,0,0.02)' : 'transparent'),
+                                        borderBottom: isToday ? '3px solid var(--color-primary)' : 'none'
                                     }}>
                                         <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>{date.toLocaleDateString('en-US', { weekday: 'short' })}</span>
                                         <span style={{ fontSize: '0.9rem', fontWeight: 600, color: isToday ? 'var(--color-primary)' : 'var(--color-text-main)' }}>{date.getDate()}</span>
@@ -191,23 +300,47 @@ export default function RoomRack() {
                         <div style={{ position: 'relative' }}>
                             {/* Background Grid Lines */}
                             <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', pointerEvents: 'none' }}>
-                                {dates.map((_, i) => (
-                                    <div key={i} style={{ width: `${cellWidth}px`, borderRight: '1px solid #f8fafc', height: '100%' }}></div>
-                                ))}
+                                {dates.map((date, i) => {
+                                    // Today Line
+                                    const isToday = date.toDateString() === new Date('2025-12-25').toDateString();
+                                    return (
+                                        <div key={i} style={{
+                                            width: `${cellWidth}px`,
+                                            borderRight: '1px solid #f8fafc',
+                                            height: '100%',
+                                            background: isToday ? 'rgba(56, 178, 172, 0.05)' : 'transparent'
+                                        }}></div>
+                                    )
+                                })}
                             </div>
 
                             {/* Timeline Rows */}
                             {unitsByGroup.map(group => (
                                 <div key={group.id}>
-                                    {/* Spacing for Group Header in fixed col */}
-                                    <div style={{ height: '29px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', opacity: 0.5 }}></div>
+                                    {/* Spacing for Group Header in fixed col MATCHING HEIGHT */}
+                                    <div style={{ height: '30px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', opacity: 0.5 }}></div>
 
                                     {/* Unit Rows with Reservations */}
                                     {group.units.map(unit => (
-                                        <div key={unit.id} style={{ height: '40px', borderBottom: '1px solid #f1f5f9', position: 'relative' }}>
-                                            {/* Render Reservations for this unit */}
-                                            {MOCK_RESERVATIONS.filter(r => r.room === unit.name).map(res => (
-                                                <div key={res.id} style={getReservationStyle(res)} title={`${res.guestName} (${res.status})`}>
+                                        <div
+                                            key={unit.id}
+                                            onDragOver={handleDragOver}
+                                            onDrop={(e) => handleDrop(e, unit.name)}
+                                            style={{ height: '40px', borderBottom: '1px solid #f1f5f9', position: 'relative' }}
+                                        >
+                                            {/* Render Reservations for this unit using Local State */}
+                                            {reservations.filter(r => r.room === unit.name).map(res => (
+                                                <div
+                                                    key={res.id}
+                                                    draggable
+                                                    onDragStart={(e) => handleDragStart(e, res)}
+                                                    onDoubleClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedRes(res);
+                                                    }}
+                                                    style={getReservationStyle(res)}
+                                                    title={`${res.guestName} (${res.status})`}
+                                                >
                                                     {res.guestName}
                                                 </div>
                                             ))}
@@ -219,6 +352,116 @@ export default function RoomRack() {
                     </div>
                 </div>
             </div>
+
+            {/* SIDE PANEL */}
+            {selectedRes && (
+                <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 0,
+                    width: '380px',
+                    height: '100%',
+                    background: 'white',
+                    boxShadow: '-4px 0 15px rgba(0,0,0,0.1)',
+                    zIndex: 50,
+                    padding: '0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    animation: 'slideInRight 0.3s ease-out'
+                }}>
+                    <div style={{
+                        padding: '1.5rem',
+                        borderBottom: '1px solid #e2e8f0',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start'
+                    }}>
+                        <div>
+                            <div style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '0.25rem', fontFamily: 'monospace' }}>RES-{selectedRes.id}</div>
+                            <h2 style={{ fontSize: '1.5rem', color: '#2d3748', margin: 0 }}>{selectedRes.guestName}</h2>
+                            <div style={{ marginTop: '0.5rem' }}>
+                                <span style={{
+                                    backgroundColor: STATUS_COLORS[selectedRes.status]?.bg,
+                                    color: STATUS_COLORS[selectedRes.status]?.text,
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    fontWeight: 600,
+                                    fontSize: '0.8rem',
+                                    textTransform: 'uppercase'
+                                }}>
+                                    {STATUS_COLORS[selectedRes.status]?.label}
+                                </span>
+                            </div>
+                        </div>
+                        <button onClick={() => setSelectedRes(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#a0aec0' }}>×</button>
+                    </div>
+
+                    <div style={{ padding: '1.5rem', flex: 1, overflowY: 'auto' }}>
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <label style={{ fontSize: '0.75rem', color: '#718096', display: 'block', marginBottom: '4px' }}>Stay Dates</label>
+                            <div style={{ fontSize: '1rem', color: '#2d3748' }}>
+                                {new Date(selectedRes.arrival).toLocaleDateString()} — {new Date(selectedRes.departure).toLocaleDateString()}
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: '#718096', marginTop: '2px' }}>
+                                {Math.ceil((new Date(selectedRes.departure) - new Date(selectedRes.arrival)) / (1000 * 60 * 60 * 24))} Nights
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                            <div>
+                                <label style={{ fontSize: '0.75rem', color: '#718096', display: 'block', marginBottom: '4px' }}>Unit</label>
+                                <div style={{ fontSize: '1rem', color: '#2d3748', fontWeight: 500 }}>{selectedRes.room}</div>
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.75rem', color: '#718096', display: 'block', marginBottom: '4px' }}>Guests</label>
+                                <div style={{ fontSize: '1rem', color: '#2d3748' }}>{selectedRes.pax} Adults</div>
+                            </div>
+                        </div>
+
+                        <div style={{ padding: '1rem', background: '#f7fafc', borderRadius: '4px', marginBottom: '1.5rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                <span style={{ color: '#4a5568' }}>Total Amount</span>
+                                <span style={{ fontWeight: 600, color: '#2d3748' }}>{(selectedRes.rate * selectedRes.pax).toFixed(2)} CHF</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#4a5568' }}>Balance</span>
+                                <span style={{ fontWeight: 600, color: '#e53e3e' }}>0.00 CHF</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 style={{ fontSize: '0.9rem', color: '#718096', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Actions</h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <button className="btn" style={{ width: '100%', textAlign: 'left', padding: '0.75rem', border: '1px solid #e2e8f0', background: 'white' }}>
+                                    📝 Edit Reservation
+                                </button>
+                                <button className="btn" style={{ width: '100%', textAlign: 'left', padding: '0.75rem', border: '1px solid #e2e8f0', background: 'white' }}>
+                                    💳 Add Payment
+                                </button>
+                                <button className="btn" style={{ width: '100%', textAlign: 'left', padding: '0.75rem', border: '1px solid #e2e8f0', background: 'white', color: '#e53e3e' }}>
+                                    ✖ Cancel Booking
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                        <button
+                            className="btn btn-apaleo-primary"
+                            style={{ width: '100%', background: '#F6AD55', color: 'white', border: 'none', padding: '0.8rem', fontWeight: 600, borderRadius: '4px' }}
+                            onClick={() => navigate('/reservations')} // Go to full details
+                        >
+                            Open Full Details
+                        </button>
+                    </div>
+                </div>
+            )}
+            <style>{`
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+            `}</style>
         </main>
     );
 }

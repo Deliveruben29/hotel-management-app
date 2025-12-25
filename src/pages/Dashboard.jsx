@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { MOCK_RESERVATIONS, UNITS } from '../data/mockData';
 
 // Reusable card component to match the card-grid style
-const DashboardCard = ({ title, icon, children, action, actionLabel, fullHeight }) => (
+const DashboardCard = ({ title, icon, children, actionLabel, onAction, fullHeight }) => (
     <div style={{
         background: 'white',
         borderRadius: '4px', // Slightly sharper corners like the reference
@@ -24,7 +26,7 @@ const DashboardCard = ({ title, icon, children, action, actionLabel, fullHeight 
         </div>
 
         {actionLabel && (
-            <button className="btn-apaleo">
+            <button className="btn-apaleo" onClick={onAction}>
                 {actionLabel}
             </button>
         )}
@@ -32,6 +34,40 @@ const DashboardCard = ({ title, icon, children, action, actionLabel, fullHeight 
 );
 
 export default function Dashboard() {
+    const navigate = useNavigate();
+
+    // Calculate Stats from Mock Data
+    const stats = useMemo(() => {
+        const today = '2025-12-25'; // Fixed date matching user context
+
+        const arrivals = MOCK_RESERVATIONS.filter(r => r.arrival === today);
+        const departures = MOCK_RESERVATIONS.filter(r => r.departure === today);
+        const inHouse = MOCK_RESERVATIONS.filter(r => r.status === 'checked_in');
+
+        // Simple guest count logic
+        const guestsInHouse = inHouse.reduce((acc, curr) => acc + curr.pax, 0);
+        const guestsArriving = arrivals.reduce((acc, curr) => acc + curr.pax, 0);
+        const guestsDeparting = departures.reduce((acc, curr) => acc + curr.pax, 0);
+
+        return {
+            arrivals: {
+                total: arrivals.length,
+                waiting: arrivals.filter(r => r.status === 'confirmed').length,
+                checkedIn: arrivals.filter(r => r.status === 'checked_in').length
+            },
+            departures: {
+                total: departures.length,
+                waiting: departures.filter(r => r.status === 'checked_in').length,
+                checkedOut: departures.filter(r => r.status === 'checked_out').length
+            },
+            guests: {
+                inHouse: guestsInHouse,
+                arrival: guestsArriving,
+                departure: guestsDeparting
+            }
+        };
+    }, []);
+
     return (
         <main className="dashboard-grid fade-in">
             <header className="view-header" style={{ marginBottom: '1.5rem', paddingBottom: 0 }}>
@@ -46,13 +82,23 @@ export default function Dashboard() {
 
             <div className="apaleo-grid">
                 {/* 1. GM Report */}
-                <DashboardCard title="General manager report" icon="📊" actionLabel="Check GM report">
+                <DashboardCard
+                    title="General manager report"
+                    icon="📊"
+                    actionLabel="Check GM report"
+                    onAction={() => navigate('/reports/gm')}
+                >
                     <p style={{ marginBottom: '1rem' }}>Analyse key performance indicators for your property such as occupancy and RevPAR.</p>
-                    <p>Filter the results to show only data for a certain part of your business. You can, for example, exclude day-use business or complimentary rate plans.</p>
+                    <p>Filter the results to show only data for a certain part of your business.</p>
                 </DashboardCard>
 
                 {/* 2. Revenues Reports */}
-                <DashboardCard title="Revenues reports" icon="📈" actionLabel="View revenues">
+                <DashboardCard
+                    title="Revenues reports"
+                    icon="📈"
+                    actionLabel="View revenues"
+                    onAction={() => navigate('/reports/revenues')}
+                >
                     <p style={{ marginBottom: '1rem' }}>Get an overview of your hotel's revenues.</p>
                     <p>See gross and net revenues for any time period, broken down by type and VAT.</p>
                 </DashboardCard>
@@ -64,11 +110,11 @@ export default function Dashboard() {
                         <InputGroup label="Cash counted" defaultValue="CHF" />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                        <InputGroup label="From*" defaultValue="21/12/2025" icon="📅" />
+                        <InputGroup label="From*" defaultValue="25/12/2025" icon="📅" />
                         <InputGroup label="Time*" defaultValue="00:00" />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '0.5rem' }}>
-                        <InputGroup label="To*" defaultValue="21/12/2025" icon="📅" />
+                        <InputGroup label="To*" defaultValue="25/12/2025" icon="📅" />
                         <InputGroup label="Time*" defaultValue="23:59" />
                     </div>
                 </DashboardCard>
@@ -94,54 +140,74 @@ export default function Dashboard() {
                 </DashboardCard>
 
                 {/* 5. Ordered Services */}
-                <DashboardCard title="Ordered services" icon="🍽️" actionLabel="View ordered services">
+                <DashboardCard
+                    title="Ordered services"
+                    icon="🍽️"
+                    actionLabel="View ordered services"
+                    onAction={() => navigate('/services')}
+                >
                     <p>View or export your breakfast list, and lists of all other items and services your quests ordered.</p>
                 </DashboardCard>
 
                 {/* 6. Reservations */}
-                <DashboardCard title="Reservations" icon="📕" actionLabel="View reservations">
+                <DashboardCard
+                    title="Reservations"
+                    icon="📕"
+                    actionLabel="View reservations"
+                    onAction={() => navigate('/reservations')}
+                >
                     <p style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '1rem' }}>
-                        All time-slices and unit types. Early and late check-ins and check-outs are excluded.
+                        All time-slices and unit types. Today: 25/12/2025.
                     </p>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                        <StatBlock label="Arrivals" counts={[{ l: 'Waiting', v: 0 }, { l: 'Checked-In', v: 0 }, { l: 'Total', v: 0 }]} />
+                        <StatBlock
+                            label="Arrivals"
+                            counts={[
+                                { l: 'Waiting', v: stats.arrivals.waiting },
+                                { l: 'Checked-In', v: stats.arrivals.checkedIn },
+                                { l: 'Total', v: stats.arrivals.total }
+                            ]}
+                        />
                     </div>
                     <div style={{ width: '100%', height: '1px', background: '#e2e8f0', margin: '0.5rem 0' }}></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <StatBlock label="Departures" counts={[{ l: 'Waiting', v: 0 }, { l: 'Checked-Out', v: 0 }, { l: 'Total', v: 0 }]} />
+                        <StatBlock
+                            label="Departures"
+                            counts={[
+                                { l: 'Waiting', v: stats.departures.waiting },
+                                { l: 'Checked-Out', v: stats.departures.checkedOut },
+                                { l: 'Total', v: stats.departures.total }
+                            ]}
+                        />
                     </div>
                 </DashboardCard>
 
                 {/* 7. Guest Count */}
                 <DashboardCard title="Guest count" icon="👥" actionLabel="Export guest count">
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}>
-                        <span>&lt;</span> 21/12/2025 <span>&gt;</span>
+                        <span>&lt;</span> 25/12/2025 <span>&gt;</span>
                     </div>
                     <p style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '1rem' }}>Over night time slice and bedroom only.</p>
 
                     <div style={{ marginBottom: '1rem' }}>
                         <div style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '0.25rem' }}>Guests</div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', textAlign: 'center' }}>
-                            <MiniStat v="0" l="In-house" />
-                            <MiniStat v="0" l="Stay-over" />
-                            <MiniStat v="0" l="Arrivals" />
-                            <MiniStat v="0" l="Departures" />
-                        </div>
-                    </div>
-                    <div>
-                        <div style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '0.25rem' }}>Reservations</div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', textAlign: 'center' }}>
-                            <MiniStat v="0" l="In-house" />
-                            <MiniStat v="0" l="Stay-over" />
-                            <MiniStat v="0" l="Arrivals" />
-                            <MiniStat v="0" l="Departures" />
+                            <MiniStat v={stats.guests.inHouse} l="In-house" />
+                            <MiniStat v={stats.guests.inHouse} l="Stay-over" /> {/* Simplified for demo */}
+                            <MiniStat v={stats.guests.arrival} l="Arrivals" />
+                            <MiniStat v={stats.guests.departure} l="Departures" />
                         </div>
                     </div>
                 </DashboardCard>
 
                 {/* 8. Room Rack */}
-                <DashboardCard title="Room rack" icon="📅" actionLabel="View room rack">
+                <DashboardCard
+                    title="Room rack"
+                    icon="📅"
+                    actionLabel="View room rack"
+                    onAction={() => navigate('/rack')}
+                >
                     <p style={{ marginBottom: '1rem' }}>Calendar view of your rooms and reservations.</p>
                     <p>See which guests are arriving or checked in, assign and change rooms, and schedule maintenances.</p>
                 </DashboardCard>

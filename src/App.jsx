@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './components/layout/MainLayout';
 import Dashboard from './pages/Dashboard';
 import Reservations from './pages/Reservations';
@@ -17,64 +18,50 @@ import GuestStatisticsReport from './pages/reports/GuestStatisticsReport';
 import Finance from './pages/Finance';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('Dashboard');
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'Dashboard':
-        return <Dashboard />;
-      case 'Reservations':
-        return <Reservations />;
-      case 'Inventory':
-        return <Inventory />;
-      case 'Room Rack': // Must match exact string from sidebar
-      case 'Rack':
-        return <RoomRack />;
-      case 'Housekeeping':
-        return <Housekeeping />;
-      case 'Rates':
-        return <Rates />;
-      case 'Services':
-        return <Services />;
-      case 'Companies':
-        return <Companies />;
-      case 'Reports':
-      case 'Reports-Overview':
-        return <Reports />;
-      case 'Reports-GM':
-        return <GeneralManagerReport />;
-      case 'Reports-Revenues':
-        return <RevenuesReport />;
-      case 'Reports-Services':
-        return <OrderedServicesReport />;
-      case 'Reports-Guests':
-        return <GuestStatisticsReport />;
-      case 'Availability':
-        return <Availability />;
-      case 'Finance':
-        return <Finance />;
-      default:
-        return (
-          <div style={{
-            padding: '4rem',
-            textAlign: 'center',
-            color: 'var(--color-text-muted)',
-            border: '2px dashed #cbd5e1',
-            borderRadius: 'var(--radius-lg)',
-            margin: '2rem'
-          }}>
-            <h3>{activeTab} Module</h3>
-            <p>Under construction. This feature will be available soon.</p>
-          </div>
-        );
-    }
-  };
-
   return (
-    <MainLayout activeTab={activeTab} onNavigate={setActiveTab}>
-      {renderContent()}
+    <MainLayout>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/reservations" element={<Reservations />} />
+        <Route path="/rack" element={<RoomRack />} />
+        <Route path="/housekeeping" element={<Housekeeping />} />
+        <Route path="/availability" element={<Availability />} />
+        <Route path="/inventory" element={<Inventory />} />
+        <Route path="/rates" element={<Rates />} />
+        <Route path="/services" element={<Services />} />
+        <Route path="/companies" element={<Companies />} />
+        <Route path="/finance" element={<Finance />} />
+
+        {/* Reports Routes */}
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/reports/overview" element={<Reports />} />
+        <Route path="/reports/gm" element={<GeneralManagerReport />} />
+        <Route path="/reports/revenues" element={<RevenuesReport />} />
+        <Route path="/reports/services" element={<OrderedServicesReport />} />
+        <Route path="/reports/guests" element={<GuestStatisticsReport />} />
+
+        {/* Fallback for not implemented or 404 */}
+        <Route path="/audit" element={<Placeholder title="Audit / Logs" />} />
+        <Route path="/settings" element={<Placeholder title="Settings" />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </MainLayout>
   );
 }
+
+// Simple placeholder component for pages under construction
+const Placeholder = ({ title }) => (
+  <div style={{
+    padding: '4rem',
+    textAlign: 'center',
+    color: 'var(--color-text-muted)',
+    border: '2px dashed #cbd5e1',
+    borderRadius: 'var(--radius-lg)',
+    margin: '2rem'
+  }}>
+    <h3>{title} Module</h3>
+    <p>Under construction. This feature will be available soon.</p>
+  </div>
+);
 
 export default App;

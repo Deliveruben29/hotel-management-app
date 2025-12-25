@@ -79,7 +79,35 @@ body {
   display: flex;
   flex-direction: column;
   padding: 1.5rem;
+  padding-right: 0.5rem;
+  /* Reduce padding for scrollbar */
   z-index: 20;
+  overflow: hidden;
+  /* Prevent full sidebar scroll */
+}
+
+/* Scrollable Nav Area */
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 1rem;
+  /* Add padding for content */
+  /* Custom scrollbar for webkit */
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 4px;
 }
 
 .sidebar-header {
