@@ -1832,41 +1832,83 @@ export const ReservationSummary = ({
                     {(() => {
                         const bal = allCharges.reduce((sum, c) => sum + (c.type === 'charge' ? c.amount : -c.amount), 0);
                         const canCheckOut = Math.abs(bal) <= 0.05;
+                        const status = activeReservation.status;
+
+                        // Action Handler
+                        const handleLifecycleAction = () => {
+                            if (status === 'confirmed' || status === 'CONFIRMED') {
+                                if (confirm("Proceed with Check-in?")) {
+                                    const updated = { ...activeReservation, status: 'IN_HOUSE' }; // Use consistent casing
+                                    updateReservation(updated);
+                                    setActiveReservation(updated);
+                                    setSuccessMessage("Check-in Successful");
+                                    setShowSuccessMessage(true);
+                                    setTimeout(() => setShowSuccessMessage(false), 3000);
+                                }
+                            } else if (status === 'IN_HOUSE' || status === 'in_house') {
+                                handleMainCheckOut();
+                            }
+                        };
+
+                        // Determine Button State
+                        let btnLabel = "Check-in";
+                        let btnColor = "#48BB78";
+                        let isDisabled = false;
+                        let btnIcon = (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                                <polyline points="10 17 15 12 10 7"></polyline>
+                                <line x1="15" y1="12" x2="3" y2="12"></line>
+                            </svg>
+                        );
+
+                        if (status === 'IN_HOUSE' || status === 'in_house') {
+                            btnLabel = "Check-out";
+                            btnColor = canCheckOut ? "#48BB78" : "#e2e8f0";
+                            isDisabled = !canCheckOut;
+                            btnIcon = (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                    <polyline points="16 17 21 12 16 7"></polyline>
+                                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                                </svg>
+                            );
+                        } else if (status === 'Checked Out' || status === 'CHECKED_OUT') {
+                            btnLabel = "Checked Out";
+                            btnColor = "#2F855A";
+                            isDisabled = true;
+                            btnIcon = (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                            );
+                        }
+
                         return (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
                                 <button
-                                    onClick={handleMainCheckOut}
-                                    disabled={!canCheckOut || activeReservation.status === 'Checked Out'}
+                                    onClick={handleLifecycleAction}
+                                    disabled={isDisabled}
                                     style={{
-                                        background: activeReservation.status === 'Checked Out' ? '#2F855A' : (canCheckOut ? '#48BB78' : '#e2e8f0'),
-                                        color: canCheckOut || activeReservation.status === 'Checked Out' ? 'white' : '#a0aec0',
+                                        background: btnColor,
+                                        color: isDisabled && (status === 'IN_HOUSE' || status === 'in_house') ? '#a0aec0' : 'white', // Gray text only for disabled checkout
                                         border: 'none',
                                         padding: '0.75rem 1.5rem',
                                         borderRadius: '8px',
                                         fontWeight: 600,
                                         fontSize: '1rem',
-                                        cursor: canCheckOut && activeReservation.status !== 'Checked Out' ? 'pointer' : 'default',
+                                        cursor: isDisabled ? 'default' : 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '0.5rem',
-                                        boxShadow: canCheckOut && activeReservation.status !== 'Checked Out' ? '0 4px 10px rgba(72, 187, 120, 0.4)' : 'none',
+                                        boxShadow: !isDisabled ? '0 4px 10px rgba(72, 187, 120, 0.4)' : 'none',
                                         transition: 'all 0.2s',
-                                        opacity: canCheckOut || activeReservation.status === 'Checked Out' ? 1 : 0.7
+                                        opacity: isDisabled && status !== 'Checked Out' ? 0.7 : 1
                                     }}
-                                    title={canCheckOut ? "Complete Check-out" : `Outstanding Balance: ${bal.toFixed(2)}`}
+                                    title={btnLabel === "Check-out" && isDisabled ? `Outstanding Balance: ${bal.toFixed(2)}` : btnLabel}
                                 >
-                                    {activeReservation.status === 'Checked Out' ? 'Checked Out' : 'Check-out'}
-                                    {activeReservation.status === 'Checked Out' ? (
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                            <polyline points="20 6 9 17 4 12"></polyline>
-                                        </svg>
-                                    ) : (
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                                            <polyline points="16 17 21 12 16 7"></polyline>
-                                            <line x1="21" y1="12" x2="9" y2="12"></line>
-                                        </svg>
-                                    )}
+                                    {btnLabel}
+                                    {btnIcon}
                                 </button>
                                 {activeReservation.invoiceNumber && (
                                     <div style={{
