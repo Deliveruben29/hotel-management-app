@@ -165,7 +165,13 @@ export const ReservationSummary = ({
             billingDetails: guestFormData.companyDetails
         };
 
-        setBillingDetails(guestFormData.companyDetails);
+        // Update billing details map if company details exist
+        if (guestFormData.companyDetails) {
+            const newMap = { ...billingDetailsMap, 1: guestFormData.companyDetails };
+            setBillingDetailsMap(newMap);
+            updatedRes.folioBillingDetails = newMap;
+        }
+
         updateReservation(updatedRes);
         setActiveReservation(updatedRes);
 
