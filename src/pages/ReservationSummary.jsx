@@ -373,7 +373,7 @@ export const ReservationSummary = ({
     const handleEditBilling = (folioId) => {
         const currentDetails = billingDetailsMap[folioId];
 
-        setTempBilling(currentDetails || {
+        const defaultDetails = {
             type: 'company',
             name: activeReservation.guestName,
             address: activeReservation.street || '',
@@ -381,7 +381,14 @@ export const ReservationSummary = ({
             zip: activeReservation.postalCode || '',
             country: activeReservation.country || 'Switzerland',
             vatId: ''
-        });
+        };
+
+        const detailsToUse = currentDetails ? { ...defaultDetails, ...currentDetails } : defaultDetails;
+
+        // Ensure country has a value if somehow missing in currentDetails
+        if (!detailsToUse.country) detailsToUse.country = activeReservation.country || 'Switzerland';
+
+        setTempBilling(detailsToUse);
         setEditingFolioId(folioId);
     };
 
@@ -1775,7 +1782,7 @@ export const ReservationSummary = ({
                                                         <div style={{ fontSize: '0.9rem', color: '#2d3748' }}>
                                                             <div style={{ fontWeight: 600, marginBottom: '0.2rem' }}>{fBilling.name}</div>
                                                             <div>{fBilling.address}</div>
-                                                            <div>{fBilling.zip} {fBilling.city}, {fBilling.country}</div>
+                                                            <div>{fBilling.zip} {fBilling.city}, {fBilling.country || activeReservation.country || 'Switzerland'}</div>
                                                             <div style={{ fontSize: '0.8rem', color: '#718096', marginTop: '0.4rem' }}>
                                                                 <span style={{ background: '#edf2f7', padding: '2px 6px', borderRadius: '4px' }}>{fBilling.type}</span>
                                                             </div>
