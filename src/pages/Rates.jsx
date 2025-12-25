@@ -199,12 +199,17 @@ export default function Rates() {
                                             {group.name}
                                         </td>
                                         {days.map((_, i) => {
-                                            let price = 100 + (group.rank * 20); // base
+                                            // Base calculation: Starts at 100 for Rank 1
+                                            let price = 100 + ((group.rank - 1) * 30);
+
+                                            // Rate Plan Adjustment
                                             if (plan.basePrice !== null && plan.basePrice !== 0) {
                                                 if (plan.basePrice < 0) price = price * (1 - (Math.abs(plan.basePrice) / 100)); // % discount
                                                 else price += plan.basePrice; // Flat add
                                             }
-                                            if (i === 5 || i === 6) price += 20; // Weekend
+
+                                            // Weekend hike
+                                            if (i === 5 || i === 6) price += 15;
 
                                             return (
                                                 <td key={i} style={{ ...cellStyle, textAlign: 'center', cursor: 'pointer' }}>
