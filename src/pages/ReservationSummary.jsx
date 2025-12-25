@@ -55,6 +55,7 @@ export const ReservationSummary = ({
     const [showLanguageModal, setShowLanguageModal] = useState(false);
     const [showInvoicePreview, setShowInvoicePreview] = useState(false);
     const [selectedLanguage, setSelectedLanguage] = useState('en');
+    const [invoiceType, setInvoiceType] = useState('standard'); // 'standard' or 'credit'
     const [selectedFolioId, setSelectedFolioId] = useState(null);
 
     // Add Charge Modal State
@@ -706,13 +707,46 @@ export const ReservationSummary = ({
     };
 
     // Document handlers
-    const handleCloseToCredit = (folioId) => {
+    const handleInitiateCreditInvoice = (folioId) => {
         setOpenDocumentsForFolio(null);
-        if (confirm(`Close Folio #${folioId} to credit? This will finalize the folio.`)) {
-            setSuccessMessage(`Folio #${folioId} closed to credit (demo)`);
-            setShowSuccessMessage(true);
-            setTimeout(() => setShowSuccessMessage(false), 3000);
-            // Here you would typically update the folio status
+
+        // Calculate balance for this folio
+        const folioCharges = allCharges.filter(c => c.folioId === folioId || (folioId === 1 && !c.folioId));
+        const fTotalCharges = folioCharges.filter(c => c.type === 'charge').reduce((sum, c) => sum + c.amount, 0);
+        const fTotalPayments = folioCharges.filter(c => c.type === 'payment').reduce((sum, c) => sum + c.amount, 0);
+        const fBalance = fTotalCharges - fTotalPayments;
+
+        if (fBalance > 0) {
+            if (confirm(`This will post a payment of ${fBalance.toFixed(2)} CHF (Transfer to AR) to close the balance and generate a Credit Invoice. Continue?`)) {
+
+                // Add internal payment to zero out balance
+                const newPayment = {
+                    id: `pay-ar-${Date.now()}`,
+                    date: new Date().toLocaleDateString(),
+                    description: "Transfer to Accounts Receivable",
+                    amount: parseFloat(fBalance.toFixed(2)),
+                    type: 'payment',
+                    folioId: folioId
+                };
+
+                const newCharges = [...extraCharges, newPayment];
+                setExtraCharges(newCharges);
+
+                // Update reservation state
+                const updatedRes = { ...activeReservation, extraCharges: newCharges };
+                updateReservation(updatedRes);
+                setActiveReservation(updatedRes);
+
+                // Prepare for invoice generation
+                setSelectedFolioId(folioId);
+                setInvoiceType('credit'); // Set flag for credit invoice
+                setShowLanguageModal(true);
+            }
+        } else {
+            // If balance is already 0 or negative, just print
+            setSelectedFolioId(folioId);
+            setInvoiceType('credit');
+            setShowLanguageModal(true);
         }
     };
 
@@ -1320,28 +1354,30 @@ export const ReservationSummary = ({
                     {/* Invoice Content */}
                     <div className="invoice-content" style={{ padding: '3rem', position: 'relative' }}>
                         {/* Watermark */}
-                        <div className="watermark" style={{
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%) rotate(-45deg)',
-                            fontSize: '5rem',
-                            fontWeight: 900,
-                            color: 'rgba(200, 200, 200, 0.15)',
-                            textTransform: 'uppercase',
-                            pointerEvents: 'none',
-                            userSelect: 'none',
-                            zIndex: 1,
-                            whiteSpace: 'nowrap'
-                        }}>
-                            {t.preInvoice}
-                        </div>
+                        {invoiceType !== 'credit' && (
+                            <div className="watermark" style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%) rotate(-45deg)',
+                                fontSize: '5rem',
+                                fontWeight: 900,
+                                color: 'rgba(200, 200, 200, 0.15)',
+                                textTransform: 'uppercase',
+                                pointerEvents: 'none',
+                                userSelect: 'none',
+                                zIndex: 1,
+                                whiteSpace: 'nowrap'
+                            }}>
+                                {t.preInvoice}
+                            </div>
+                        )}
 
                         {/* Header */}
                         <div style={{ position: 'relative', zIndex: 2 }}>
                             <div style={{ textAlign: 'center', marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '3px solid #3182ce' }}>
                                 <h1 style={{ fontSize: '2.5rem', fontWeight: 700, color: '#2d3748', margin: 0, marginBottom: '0.5rem' }}>
-                                    Hotel Management
+                                    {invoiceType === 'credit' ? 'TAX INVOICE' : 'Hotel Management'}
                                 </h1>
                                 <p style={{ color: '#718096', margin: 0 }}>Premium Hospitality Services</p>
                             </div>
@@ -1353,7 +1389,7 @@ export const ReservationSummary = ({
                                         {t.invoice} {t.invoiceNumber}
                                     </h3>
                                     <p style={{ fontSize: '1.25rem', fontWeight: 600, color: '#2d3748', margin: 0, marginBottom: '1rem' }}>
-                                        {invoiceNumber}
+                                        {invoiceType === 'credit' ? `INV-${Date.now().toString().slice(-6)}` : invoiceNumber}
                                     </p>
                                     <div style={{ fontSize: '0.9rem', color: '#4a5568', lineHeight: 1.8 }}>
                                         <div><strong>{t.date}:</strong> {todayDate}</div>
@@ -1362,6 +1398,12 @@ export const ReservationSummary = ({
                                         <div><strong>{t.checkIn}:</strong> {activeReservation.checkIn}</div>
                                         <div><strong>{t.checkOut}:</strong> {activeReservation.checkOut}</div>
                                         <div><strong>{t.nights}:</strong> {nights}</div>
+                                        {invoiceType === 'credit' && (
+                                            <div style={{ marginTop: '0.75rem', padding: '0.5rem', background: '#fff5f5', borderLeft: '3px solid #c53030', borderRadius: '0 4px 4px 0' }}>
+                                                <div style={{ color: '#c53030' }}><strong>Payment Terms:</strong> 30 Days</div>
+                                                <div style={{ color: '#c53030' }}><strong>Due Date:</strong> {new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}</div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -1960,7 +2002,7 @@ export const ReservationSummary = ({
                                                         overflow: 'hidden'
                                                     }}>
                                                         <div
-                                                            onClick={() => handleCloseToCredit(folio.id)}
+                                                            onClick={() => handleInitiateCreditInvoice(folio.id)}
                                                             className="hover-bg-gray"
                                                             style={{
                                                                 padding: '0.65rem 1rem',
@@ -1976,7 +2018,7 @@ export const ReservationSummary = ({
                                                                 <rect x="2" y="5" width="20" height="14" rx="2"></rect>
                                                                 <line x1="2" y1="10" x2="22" y2="10"></line>
                                                             </svg>
-                                                            Close to Credit
+                                                            Issue Credit Invoice (30 Days)
                                                         </div>
                                                         <div
                                                             onClick={() => handlePrintPreInvoice(folio.id)}
