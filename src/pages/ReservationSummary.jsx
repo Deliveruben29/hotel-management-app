@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { STATUS_COLORS, MOCK_COMPANIES, COUNTRIES } from '../data/mockData';
 import { INVOICE_TRANSLATIONS } from '../data/invoiceTranslations';
+import { useProperty } from '../context/PropertyContext';
+import { getVATRate, formatVATRate } from '../data/vatRates';
 
 export const ReservationSummary = ({
     activeReservation,
@@ -55,6 +57,9 @@ export const ReservationSummary = ({
     const [selectedLanguage, setSelectedLanguage] = useState('en');
     const [selectedFolioId, setSelectedFolioId] = useState(null);
     // END: State Definitions
+
+    // Get active property for VAT calculation
+    const { activeProperty } = useProperty();
 
     const isCheckInAvailable = activeReservation?.status === 'confirmed';
     const isCheckOutAvailable = activeReservation?.status === 'checked_in';
@@ -730,10 +735,13 @@ export const ReservationSummary = ({
         const folioChargesOnly = folioOnlyCharges.filter(c => c.type === 'charge');
         const folioPaymentsOnly = folioOnlyCharges.filter(c => c.type === 'payment');
 
-        const subtotal = folioChargesOnly.reduce((sum, c) => sum + c.amount, 0);
-        const taxRate = 0.077; // 7.7% Swiss VAT
-        const taxAmount = subtotal * taxRate;
-        const totalWithTax = subtotal + taxAmount;
+        // Prices are VAT-inclusive, so we need to extract the VAT amount
+        const totalWithTax = folioChargesOnly.reduce((sum, c) => sum + c.amount, 0);
+        // Get VAT rate based on active property's country
+        const taxRate = activeProperty ? getVATRate(activeProperty.country, 'accommodation') : 0.038;
+        // Calculate net amount (price without VAT) from total
+        const subtotal = totalWithTax / (1 + taxRate);
+        const taxAmount = totalWithTax - subtotal;
         const folioTotalPayments = folioPaymentsOnly.reduce((sum, c) => sum + c.amount, 0);
         const folioBalance = totalWithTax - folioTotalPayments;
 
@@ -861,7 +869,7 @@ export const ReservationSummary = ({
                                     <span style={{ fontWeight: 600, color: '#2d3748' }}>{subtotal.toFixed(2)} {t.currency}</span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
-                                    <span style={{ color: '#4a5568' }}>{t.tax} (7.7%):</span>
+                                    <span style={{ color: '#4a5568' }}>{t.tax} ({formatVATRate(taxRate)}):</span>
                                     <span style={{ fontWeight: 600, color: '#2d3748' }}>{taxAmount.toFixed(2)} {t.currency}</span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>

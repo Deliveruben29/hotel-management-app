@@ -17,37 +17,40 @@ import OrderedServicesReport from './pages/reports/OrderedServicesReport';
 import GuestsStatisticsReport from './pages/reports/GuestStatisticsReport';
 import Finance from './pages/Finance';
 import { ReservationProvider } from './context/ReservationContext';
+import { PropertyProvider } from './context/PropertyContext';
 
 function App() {
   return (
     <MainLayout>
-      <ReservationProvider>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/reservations" element={<ReservationsNew />} />
-          <Route path="/rack" element={<RoomRack />} />
-          <Route path="/housekeeping" element={<Housekeeping />} />
-          <Route path="/availability" element={<Availability />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/rates" element={<Rates />} />
-          <Route path="/services" element={<Services />} />
-          <Route path="/companies" element={<Companies />} />
-          <Route path="/finance" element={<Finance />} />
+      <PropertyProvider>
+        <ReservationProvider>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/reservations" element={<ReservationsNew />} />
+            <Route path="/rack" element={<RoomRack />} />
+            <Route path="/housekeeping" element={<Housekeeping />} />
+            <Route path="/availability" element={<Availability />} />
+            <Route path="/inventory" element={<Inventory />} />
+            <Route path="/rates" element={<Rates />} />
+            <Route path="/services" element={<Services />} />
+            <Route path="/companies" element={<Companies />} />
+            <Route path="/finance" element={<Finance />} />
 
-          {/* Reports Routes */}
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/reports/overview" element={<Reports />} />
-          <Route path="/reports/gm" element={<GeneralManagerReport />} />
-          <Route path="/reports/revenues" element={<RevenuesReport />} />
-          <Route path="/reports/services" element={<OrderedServicesReport />} />
-          <Route path="/reports/guests" element={<GuestsStatisticsReport />} />
+            {/* Reports Routes */}
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/reports/overview" element={<Reports />} />
+            <Route path="/reports/gm" element={<GeneralManagerReport />} />
+            <Route path="/reports/revenues" element={<RevenuesReport />} />
+            <Route path="/reports/services" element={<OrderedServicesReport />} />
+            <Route path="/reports/guests" element={<GuestsStatisticsReport />} />
 
-          {/* Fallback for not implemented or 404 */}
-          <Route path="/audit" element={<Placeholder title="Audit / Logs" />} />
-          <Route path="/settings" element={<Placeholder title="Settings" />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </ReservationProvider>
+            {/* Fallback for not implemented or 404 */}
+            <Route path="/audit" element={<Placeholder title="Audit / Logs" />} />
+            <Route path="/settings" element={<Placeholder title="Settings" />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </ReservationProvider>
+      </PropertyProvider>
     </MainLayout>
   );
 }
