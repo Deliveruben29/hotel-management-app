@@ -21,8 +21,8 @@ import { PropertyProvider } from './context/PropertyContext';
 
 function App() {
   return (
-    <MainLayout>
-      <PropertyProvider>
+    <PropertyProvider>
+      <MainLayout>
         <ReservationProvider>
           <Routes>
             <Route path="/" element={<Dashboard />} />
@@ -50,8 +50,8 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </ReservationProvider>
-      </PropertyProvider>
-    </MainLayout>
+      </MainLayout>
+    </PropertyProvider>
   );
 }
 
