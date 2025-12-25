@@ -750,6 +750,51 @@ export const ReservationSummary = ({
         }
     };
 
+    const handleDownloadInvoice = (folioId) => {
+        setOpenDocumentsForFolio(null);
+        // Check balance
+        const folioCharges = allCharges.filter(c => c.folioId === folioId || (folioId === 1 && !c.folioId));
+        const fTotalCharges = folioCharges.filter(c => c.type === 'charge').reduce((sum, c) => sum + c.amount, 0);
+        const fTotalPayments = folioCharges.filter(c => c.type === 'payment').reduce((sum, c) => sum + c.amount, 0);
+        const fBalance = fTotalCharges - fTotalPayments;
+
+        // If balance is approx 0, treat as Credit Invoice, otherwise Pre-Invoice
+        const isSettled = Math.abs(fBalance) < 0.05;
+
+        setSelectedFolioId(folioId);
+        setInvoiceType(isSettled ? 'credit' : 'standard');
+        setShowLanguageModal(true);
+    };
+
+    const handleVoidInvoice = (folioId) => {
+        setOpenDocumentsForFolio(null);
+
+        // Find AR payments
+        const arPayment = extraCharges.find(c =>
+            c.type === 'payment' &&
+            (c.folioId === folioId || (folioId === 1 && !c.folioId)) &&
+            c.description === "Transfer to Accounts Receivable"
+        );
+
+        if (!arPayment) {
+            alert("No Credit Invoice (AR Transfer) found to void for this folio.");
+            return;
+        }
+
+        if (confirm("Are you sure you want to VOID this invoice? This will revert the 'Transfer to AR' payment and re-open the folio balance.")) {
+            const newCharges = extraCharges.filter(c => c.id !== arPayment.id);
+            setExtraCharges(newCharges);
+
+            const updatedRes = { ...activeReservation, extraCharges: newCharges };
+            updateReservation(updatedRes);
+            setActiveReservation(updatedRes);
+
+            setSuccessMessage("Invoice voided. Folio re-opened.");
+            setShowSuccessMessage(true);
+            setTimeout(() => setShowSuccessMessage(false), 3000);
+        }
+    };
+
     const handlePrintPreInvoice = (folioId) => {
         setOpenDocumentsForFolio(null);
         setSelectedFolioId(folioId);
@@ -2065,61 +2110,37 @@ export const ReservationSummary = ({
                                                         <div
                                                             onClick={() => handleInitiateCreditInvoice(folio.id)}
                                                             className="hover-bg-gray"
-                                                            style={{
-                                                                padding: '0.65rem 1rem',
-                                                                cursor: 'pointer',
-                                                                borderBottom: '1px solid #f7fafc',
-                                                                fontSize: '0.85rem',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '0.65rem'
-                                                            }}
+                                                            style={{ padding: '0.65rem 1rem', cursor: 'pointer', borderBottom: '1px solid #f7fafc', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}
                                                         >
-                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                <rect x="2" y="5" width="20" height="14" rx="2"></rect>
-                                                                <line x1="2" y1="10" x2="22" y2="10"></line>
-                                                            </svg>
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
                                                             Issue Credit Invoice (30 Days)
                                                         </div>
+
+                                                        <div
+                                                            onClick={() => handleDownloadInvoice(folio.id)}
+                                                            className="hover-bg-gray"
+                                                            style={{ padding: '0.65rem 1rem', cursor: 'pointer', borderBottom: '1px solid #f7fafc', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}
+                                                        >
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                                            Download Invoice
+                                                        </div>
+
                                                         <div
                                                             onClick={() => handlePrintPreInvoice(folio.id)}
                                                             className="hover-bg-gray"
-                                                            style={{
-                                                                padding: '0.65rem 1rem',
-                                                                cursor: 'pointer',
-                                                                borderBottom: '1px solid #f7fafc',
-                                                                fontSize: '0.85rem',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '0.65rem'
-                                                            }}
+                                                            style={{ padding: '0.65rem 1rem', cursor: 'pointer', borderBottom: '1px solid #f7fafc', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}
                                                         >
-                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                                                                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                                                                <rect x="6" y="14" width="12" height="8"></rect>
-                                                            </svg>
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
                                                             Print Pre-Invoice
                                                         </div>
+
                                                         <div
-                                                            onClick={() => handleEarlyCheckout(folio.id)}
+                                                            onClick={() => handleVoidInvoice(folio.id)}
                                                             className="hover-bg-gray"
-                                                            style={{
-                                                                padding: '0.65rem 1rem',
-                                                                cursor: 'pointer',
-                                                                fontSize: '0.85rem',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '0.65rem',
-                                                                color: '#2F855A'
-                                                            }}
+                                                            style={{ padding: '0.65rem 1rem', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.65rem', color: '#e53e3e', borderTop: '1px solid #f7fafc' }}
                                                         >
-                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                                                                <polyline points="16 17 21 12 16 7"></polyline>
-                                                                <line x1="21" y1="12" x2="9" y2="12"></line>
-                                                            </svg>
-                                                            Early Check-out
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                                                            Void / Storno Invoice
                                                         </div>
                                                     </div>
                                                 )}
