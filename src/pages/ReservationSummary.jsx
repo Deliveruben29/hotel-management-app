@@ -1738,6 +1738,18 @@ export const ReservationSummary = ({
                                                                 onChange={(e) => setTempBilling({ ...tempBilling, zip: e.target.value })}
                                                             />
                                                         </div>
+                                                        <div style={{ gridColumn: 'span 2' }}>
+                                                            <label style={labelStyle}>Country</label>
+                                                            <select
+                                                                style={{ ...inputStyle, background: 'white' }}
+                                                                value={tempBilling.country}
+                                                                onChange={(e) => setTempBilling({ ...tempBilling, country: e.target.value })}
+                                                            >
+                                                                {COUNTRIES.map(c => (
+                                                                    <option key={c} value={c}>{c}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
                                                     </div>
 
                                                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
@@ -1769,10 +1781,16 @@ export const ReservationSummary = ({
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        <div style={{ fontSize: '0.9rem', color: '#a0aec0', fontStyle: 'italic' }}>
-                                                            Default (Guest: {activeReservation.guestName})
+                                                        <div style={{ fontSize: '0.9rem', color: '#2d3748' }}>
+                                                            <div style={{ fontWeight: 600, marginBottom: '0.2rem' }}>{activeReservation.guestName}</div>
+                                                            <div>{activeReservation.street}</div>
+                                                            <div>{activeReservation.postalCode} {activeReservation.city}, {activeReservation.country}</div>
+                                                            <div style={{ fontSize: '0.8rem', color: '#718096', marginTop: '0.4rem' }}>
+                                                                <span style={{ background: '#edf2f7', padding: '2px 6px', borderRadius: '4px' }}>Guest (Default)</span>
+                                                            </div>
                                                         </div>
                                                     )}
+
                                                 </div>
                                             )}
                                         </div>
@@ -2035,7 +2053,7 @@ export const ReservationSummary = ({
                 </div>
             )
             }
-        </div>
+        </div >
     );
 };
 
