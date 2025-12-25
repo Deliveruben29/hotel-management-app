@@ -66,6 +66,14 @@ export const ReservationSummary = ({
         dateOption: 'today', // 'today', 'specific', 'entire-stay'
         selectedDates: [] // Array of date strings for 'specific' option
     });
+
+    // Add Payment Modal State
+    const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
+    const [paymentModalFolioId, setPaymentModalFolioId] = useState(null);
+    const [paymentFormData, setPaymentFormData] = useState({
+        method: 'card', // 'card', 'cash', 'link', 'other'
+        amount: 0
+    });
     // END: State Definitions
 
     // Get active property for VAT calculation
@@ -239,23 +247,53 @@ export const ReservationSummary = ({
         // Safe check for event object
         const effectiveFolioId = (typeof targetFolioId === 'object' || targetFolioId === undefined) ? 1 : targetFolioId;
 
-        const amount = prompt("Enter payment amount:");
-        if (amount) {
-            const newPayment = {
-                id: `pay-${Date.now()}`,
-                date: new Date().toLocaleDateString(),
-                description: "Payment - Cash/Card",
-                amount: parseFloat(amount),
-                type: 'payment',
-                folioId: effectiveFolioId
-            };
-            const newCharges = [...extraCharges, newPayment];
-            setExtraCharges(newCharges);
+        // Calculate remaining balance for this folio to pre-fill amount
+        const folioCharges = allCharges.filter(c => c.folioId === effectiveFolioId && c.type === 'charge')
+            .reduce((sum, c) => sum + c.amount, 0);
+        const folioPayments = allCharges.filter(c => c.folioId === effectiveFolioId && c.type === 'payment')
+            .reduce((sum, c) => sum + c.amount, 0);
+        const pendingAmount = Math.max(0, folioCharges - folioPayments);
 
-            const updatedRes = { ...activeReservation, extraCharges: newCharges };
-            updateReservation(updatedRes);
-            setActiveReservation(updatedRes);
+        setPaymentModalFolioId(effectiveFolioId);
+        setPaymentFormData({
+            method: 'card',
+            amount: parseFloat(pendingAmount.toFixed(2))
+        });
+        setShowAddPaymentModal(true);
+    };
+
+    const handleSubmitPayment = () => {
+        const amount = parseFloat(paymentFormData.amount);
+        if (!amount || amount <= 0) {
+            alert('Please enter a valid amount');
+            return;
         }
+
+        let description = "Payment";
+        switch (paymentFormData.method) {
+            case 'card': description = "Payment - Credit/Debit Card"; break;
+            case 'cash': description = "Payment - Cash"; break;
+            case 'link': description = "Payment - Payment Link"; break;
+            case 'other': description = "Payment - Other"; break;
+        }
+
+        const newPayment = {
+            id: `pay-${Date.now()}`,
+            date: new Date().toLocaleDateString(),
+            description: description,
+            amount: amount,
+            type: 'payment',
+            folioId: paymentModalFolioId
+        };
+
+        const newCharges = [...extraCharges, newPayment];
+        setExtraCharges(newCharges);
+
+        const updatedRes = { ...activeReservation, extraCharges: newCharges };
+        updateReservation(updatedRes);
+        setActiveReservation(updatedRes);
+
+        setShowAddPaymentModal(false);
     };
 
     // --- Guest Profile Handlers ---
@@ -977,6 +1015,108 @@ export const ReservationSummary = ({
         );
     };
 
+    // Render Add Payment Modal
+    const renderAddPaymentModal = () => {
+        if (!showAddPaymentModal) return null;
+
+        const paymentMethods = [
+            { id: 'card', name: 'Credit/Debit Card', icon: '💳' },
+            { id: 'cash', name: 'Cash', icon: '💶' },
+            { id: 'link', name: 'Payment Link', icon: '🔗' },
+            { id: 'other', name: 'Other', icon: '🔹' }
+        ];
+
+        return (
+            <div style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                zIndex: 10000
+            }}>
+                <div style={{ background: 'white', padding: '2rem', borderRadius: '12px', width: '500px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                    <h3 style={{ marginTop: 0, color: '#2d3748', marginBottom: '0.5rem' }}>Add Payment to Folio #{paymentModalFolioId}</h3>
+                    <p style={{ fontSize: '0.9rem', color: '#718096', marginBottom: '1.5rem' }}>Select payment method and amount</p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        {/* Payment Method Selection */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#4a5568', marginBottom: '0.5rem' }}>
+                                Payment Method *
+                            </label>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+                                {paymentMethods.map(method => (
+                                    <label
+                                        key={method.id}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.75rem',
+                                            padding: '1rem',
+                                            border: '2px solid ' + (paymentFormData.method === method.id ? '#3182ce' : '#e2e8f0'),
+                                            borderRadius: '8px',
+                                            cursor: 'pointer',
+                                            background: paymentFormData.method === method.id ? '#ebf8ff' : 'white',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="paymentMethod"
+                                            value={method.id}
+                                            checked={paymentFormData.method === method.id}
+                                            onChange={(e) => setPaymentFormData({ ...paymentFormData, method: e.target.value })}
+                                            style={{ display: 'none' }}
+                                        />
+                                        <div style={{ fontSize: '1.5rem' }}>{method.icon}</div>
+                                        <div style={{ fontWeight: 600, color: '#2d3748' }}>{method.name}</div>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Amount */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#4a5568', marginBottom: '0.5rem' }}>
+                                Amount (CHF) *
+                            </label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={paymentFormData.amount}
+                                onChange={(e) => setPaymentFormData({ ...paymentFormData, amount: e.target.value })}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.75rem',
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '6px',
+                                    fontSize: '1.2rem',
+                                    fontWeight: 600,
+                                    color: '#2d3748'
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
+                        <button
+                            onClick={handleSubmitPayment}
+                            className="btn"
+                            style={{ flex: 1, background: '#38a169', color: 'white', padding: '0.75rem', fontWeight: 600 }}
+                        >
+                            Process Payment
+                        </button>
+                        <button
+                            onClick={() => setShowAddPaymentModal(false)}
+                            className="btn"
+                            style={{ padding: '0.75rem 1.5rem', border: '1px solid #cbd5e1', background: 'white' }}
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const renderLanguageModal = () => {
         if (!showLanguageModal) return null;
 
@@ -1272,6 +1412,7 @@ export const ReservationSummary = ({
             {renderLanguageModal()}
             {renderInvoicePreview()}
             {renderAddChargeModal()}
+            {renderAddPaymentModal()}
 
             <header className="view-header" style={{ marginBottom: '1rem' }}>
                 <div>
