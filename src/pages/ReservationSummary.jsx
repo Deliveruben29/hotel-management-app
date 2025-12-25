@@ -48,8 +48,8 @@ export const ReservationSummary = ({
     const [showSuccessMessage, setShowSuccessMessage] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
 
-    // Documents dropdown state
-    const [showDocumentsMenu, setShowDocumentsMenu] = useState(false);
+    // Documents dropdown state (track which folio has menu open)
+    const [openDocumentsForFolio, setOpenDocumentsForFolio] = useState(null);
     const [showLanguageModal, setShowLanguageModal] = useState(false);
     const [showInvoicePreview, setShowInvoicePreview] = useState(false);
     const [selectedLanguage, setSelectedLanguage] = useState('en');
@@ -542,18 +542,18 @@ export const ReservationSummary = ({
     };
 
     // Document handlers
-    const handleCloseToCredit = () => {
-        setShowDocumentsMenu(false);
-        if (confirm('Close this reservation to credit? This will mark the balance as to be paid later.')) {
-            setSuccessMessage('Reservation closed to credit');
+    const handleCloseToCredit = (folioId) => {
+        setOpenDocumentsForFolio(null);
+        if (confirm(`Close Folio #${folioId} to credit? This will finalize the folio.`)) {
+            setSuccessMessage(`Folio #${folioId} closed to credit (demo)`);
             setShowSuccessMessage(true);
             setTimeout(() => setShowSuccessMessage(false), 3000);
-            // Here you would typically update the reservation status
+            // Here you would typically update the folio status
         }
     };
 
     const handlePrintPreInvoice = (folioId) => {
-        setShowDocumentsMenu(false);
+        setOpenDocumentsForFolio(null);
         setSelectedFolioId(folioId);
         setShowLanguageModal(true);
     };
@@ -572,10 +572,10 @@ export const ReservationSummary = ({
         setShowInvoicePreview(false);
     };
 
-    const handleEarlyCheckout = () => {
-        setShowDocumentsMenu(false);
-        if (confirm('Process early check-out for this reservation?')) {
-            setSuccessMessage('Early check-out processed');
+    const handleEarlyCheckout = (folioId) => {
+        setOpenDocumentsForFolio(null);
+        if (confirm(`Process early check-out for Folio #${folioId}?`)) {
+            setSuccessMessage(`Early check-out processed for Folio #${folioId} (demo)`);
             setShowSuccessMessage(true);
             setTimeout(() => setShowSuccessMessage(false), 3000);
             // Here you would typically update the reservation status and departure date
@@ -1260,27 +1260,108 @@ export const ReservationSummary = ({
                                                 <div style={{ fontWeight: 600, color: '#2d3748' }}>{folio.name}</div>
                                                 <div style={{ fontSize: '0.85rem', color: '#718096' }}>#{folio.id}</div>
                                             </div>
-                                            <button
-                                                onClick={() => handlePrintPreInvoice(folio.id)}
-                                                className="btn"
-                                                style={{
-                                                    background: 'white',
-                                                    border: '1px solid #cbd5e1',
-                                                    padding: '0.4rem 0.8rem',
-                                                    fontSize: '0.8rem',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '0.5rem'
-                                                }}
-                                            >
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                                    <polyline points="14 2 14 8 20 8"></polyline>
-                                                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                                                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                                                </svg>
-                                                Documents
-                                            </button>
+                                            <div style={{ position: 'relative' }}>
+                                                <button
+                                                    onClick={() => setOpenDocumentsForFolio(openDocumentsForFolio === folio.id ? null : folio.id)}
+                                                    className="btn"
+                                                    style={{
+                                                        background: 'white',
+                                                        border: '1px solid #cbd5e1',
+                                                        padding: '0.4rem 0.8rem',
+                                                        fontSize: '0.8rem',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.5rem'
+                                                    }}
+                                                >
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                                                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                                                    </svg>
+                                                    Documents
+                                                    <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor">
+                                                        <path d="M6 9L1 4h10z" />
+                                                    </svg>
+                                                </button>
+
+                                                {openDocumentsForFolio === folio.id && (
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        right: 0,
+                                                        top: '100%',
+                                                        marginTop: '0.5rem',
+                                                        background: 'white',
+                                                        border: '1px solid #e2e8f0',
+                                                        borderRadius: '6px',
+                                                        boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                                                        zIndex: 1000,
+                                                        minWidth: '200px',
+                                                        overflow: 'hidden'
+                                                    }}>
+                                                        <div
+                                                            onClick={() => handleCloseToCredit(folio.id)}
+                                                            className="hover-bg-gray"
+                                                            style={{
+                                                                padding: '0.65rem 1rem',
+                                                                cursor: 'pointer',
+                                                                borderBottom: '1px solid #f7fafc',
+                                                                fontSize: '0.85rem',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.65rem'
+                                                            }}
+                                                        >
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                                                                <line x1="2" y1="10" x2="22" y2="10"></line>
+                                                            </svg>
+                                                            Close to Credit
+                                                        </div>
+                                                        <div
+                                                            onClick={() => handlePrintPreInvoice(folio.id)}
+                                                            className="hover-bg-gray"
+                                                            style={{
+                                                                padding: '0.65rem 1rem',
+                                                                cursor: 'pointer',
+                                                                borderBottom: '1px solid #f7fafc',
+                                                                fontSize: '0.85rem',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.65rem'
+                                                            }}
+                                                        >
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                                                                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                                                                <rect x="6" y="14" width="12" height="8"></rect>
+                                                            </svg>
+                                                            Print Pre-Invoice
+                                                        </div>
+                                                        <div
+                                                            onClick={() => handleEarlyCheckout(folio.id)}
+                                                            className="hover-bg-gray"
+                                                            style={{
+                                                                padding: '0.65rem 1rem',
+                                                                cursor: 'pointer',
+                                                                fontSize: '0.85rem',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.65rem',
+                                                                color: '#2F855A'
+                                                            }}
+                                                        >
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                                                <polyline points="16 17 21 12 16 7"></polyline>
+                                                                <line x1="21" y1="12" x2="9" y2="12"></line>
+                                                            </svg>
+                                                            Early Check-out
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
 
                                         <div style={{ flex: 1, overflowY: 'auto' }}>
