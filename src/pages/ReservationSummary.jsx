@@ -42,6 +42,10 @@ export const ReservationSummary = ({
 
     // Bulk Actions State
     const [selectedCharges, setSelectedCharges] = useState([]); // Set of charge IDs
+
+    // Success notification state
+    const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
     // END: State Definitions
 
     const isCheckInAvailable = activeReservation?.status === 'confirmed';
@@ -164,6 +168,12 @@ export const ReservationSummary = ({
         setBillingDetails(guestFormData.companyDetails);
         updateReservation(updatedRes);
         setActiveReservation(updatedRes);
+
+        // Show success message
+        setSuccessMessage('Guest profile saved successfully!');
+        setShowSuccessMessage(true);
+        setTimeout(() => setShowSuccessMessage(false), 3000);
+
         setIsEditingGuest(false);
     };
 
@@ -577,6 +587,33 @@ export const ReservationSummary = ({
     return (
         <div className="dashboard-view fade-in">
             {renderRectifyModal()}
+
+            {/* Success Notification */}
+            {showSuccessMessage && (
+                <div style={{
+                    position: 'fixed',
+                    top: '20px',
+                    right: '20px',
+                    background: 'linear-gradient(135deg, #48BB78 0%, #38A169 100%)',
+                    color: 'white',
+                    padding: '1rem 1.5rem',
+                    borderRadius: '8px',
+                    boxShadow: '0 10px 25px rgba(72, 187, 120, 0.3)',
+                    zIndex: 9999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    animation: 'slideInRight 0.3s ease-out',
+                    fontWeight: 500,
+                    fontSize: '0.95rem'
+                }}>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 0C4.48 0 0 4.48 0 10C0 15.52 4.48 20 10 20C15.52 20 20 15.52 20 10C20 4.48 15.52 0 10 0ZM8 15L3 10L4.41 8.59L8 12.17L15.59 4.58L17 6L8 15Z" fill="white" />
+                    </svg>
+                    {successMessage}
+                </div>
+            )}
+
             <header className="view-header" style={{ marginBottom: '1rem' }}>
                 <div>
                     <div style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '0.5rem', fontWeight: 500 }}>
