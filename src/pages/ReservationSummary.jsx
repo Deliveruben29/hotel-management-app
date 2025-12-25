@@ -1438,8 +1438,8 @@ export const ReservationSummary = ({
         const todayDate = new Date().toLocaleDateString();
 
         // Calculate nights
-        const checkInDate = new Date(activeReservation.checkIn);
-        const checkOutDate = new Date(activeReservation.checkOut);
+        const checkInDate = new Date(activeReservation.arrival || activeReservation.checkIn);
+        const checkOutDate = new Date(activeReservation.departure || activeReservation.checkOut);
         const nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
 
         // Get billing address for selected folio

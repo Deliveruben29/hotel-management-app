@@ -342,83 +342,87 @@ body {
   }
 }
 
-/* Print styles for invoice */
-/* Print styles for invoice - Optimized */
+/* Print styles for invoice - Fixed Pagination & Margins */
 @media print {
   @page {
-    margin: 1.5cm;
-    size: auto;
+    margin: 1cm;
+    size: A4;
   }
 
-  body {
-    visibility: hidden;
-    overflow: visible !important;
-    height: auto !important;
-    background: white !important;
-  }
-
-  /* Make overlay contents visible and reset layout constraints */
-  .invoice-preview-overlay,
-  .invoice-preview-overlay * {
-    visibility: visible;
-  }
-
-  .invoice-preview-overlay {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
+  /* RESET APP LAYOUT FOR PRINTING */
+  html,
+  body,
+  #root,
+  .app-container,
+  .main-content,
+  .dashboard-view {
     width: 100% !important;
     height: auto !important;
     overflow: visible !important;
-    background: white !important;
-    padding: 0 !important;
-    margin: 0 !important;
+    position: static !important;
     display: block !important;
-    z-index: 999999 !important;
-  }
-
-  /* Reset inner container constraints */
-  .invoice-preview-overlay>div {
-    max-width: none !important;
-    box-shadow: none !important;
+    /* Critical: Disable Flexbox */
     margin: 0 !important;
-    border: none !important;
-    overflow: visible !important;
+    padding: 0 !important;
     background: white !important;
-    border-radius: 0 !important;
   }
 
-  /* Hide UI elements */
-  .no-print {
+  /* HIDE EVERYTHING ELSE */
+  .sidebar,
+  .top-header,
+  .no-print,
+  .view-header,
+  button {
     display: none !important;
   }
 
-  /* Content Styling */
-  .invoice-content {
-    padding: 0 !important;
+  /* INVOICE OVERLAY BECOMES THE DOCUMENT */
+  .invoice-preview-overlay {
     position: static !important;
-    page-break-inside: auto !important;
-    /* Allow breaking pages */
-    box-shadow: none !important;
+    /* Static allows page flow */
+    width: 100% !important;
+    height: auto !important;
+    background: white !important;
+    z-index: auto !important;
+    display: block !important;
+    border: none !important;
   }
 
-  /* Prevent awkward breaks */
-  tr {
-    break-inside: avoid;
-    page-break-inside: avoid;
+  /* INVOICE CONTAINER */
+  .invoice-preview-overlay>div {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    position: static !important;
+  }
+
+  /* CONTENT ADJUSTMENTS */
+  .invoice-content {
+    padding: 0 1rem !important;
+    /* Add slight padding for aesthetics */
+    margin-top: 0 !important;
+  }
+
+  /* PAGE BREAKS CONTROL */
+  .invoice-content {
+    page-break-inside: auto !important;
+  }
+
+  tr,
+  .charge-row {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   h1,
   h2,
-  h3,
-  h4 {
-    break-after: avoid;
-    page-break-after: avoid;
+  h3 {
+    page-break-after: avoid !important;
   }
 
-  /* Color accuracy */
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
+  /* Hide URL footers if possible via standard margins, 
+     but browser settings mostly control headers/footers */
 }
