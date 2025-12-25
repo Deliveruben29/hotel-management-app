@@ -822,14 +822,24 @@ export const ReservationSummary = ({
             return;
         }
 
-        if (confirm("Proceed with Check-out? This will update the reservation status.")) {
-            const updatedRes = { ...activeReservation, status: 'Checked Out' };
+        if (confirm("Proceed with Check-out? This will generate the final invoice number.")) {
+            // Generate Invoice Data
+            const invoiceNumber = activeReservation.invoiceNumber || `INV-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+            const invoiceDate = activeReservation.invoiceDate || new Date().toISOString();
+
+            const updatedRes = {
+                ...activeReservation,
+                status: 'Checked Out',
+                invoiceNumber: invoiceNumber,
+                invoiceDate: invoiceDate
+            };
+
             updateReservation(updatedRes);
             setActiveReservation(updatedRes);
 
-            setSuccessMessage("Reservation Successfully Checked Out");
+            setSuccessMessage(`Checked Out Successfully. Invoice #${invoiceNumber} Created.`);
             setShowSuccessMessage(true);
-            setTimeout(() => setShowSuccessMessage(false), 3000);
+            setTimeout(() => setShowSuccessMessage(false), 4000);
         }
     };
 
@@ -1823,34 +1833,53 @@ export const ReservationSummary = ({
                         const bal = allCharges.reduce((sum, c) => sum + (c.type === 'charge' ? c.amount : -c.amount), 0);
                         const canCheckOut = Math.abs(bal) <= 0.05;
                         return (
-                            <button
-                                onClick={handleMainCheckOut}
-                                style={{
-                                    background: canCheckOut ? '#48BB78' : '#e2e8f0',
-                                    color: canCheckOut ? 'white' : '#a0aec0',
-                                    border: 'none',
-                                    padding: '0.75rem 1.5rem',
-                                    borderRadius: '8px',
-                                    fontWeight: 600,
-                                    fontSize: '1rem',
-                                    cursor: canCheckOut ? 'pointer' : 'not-allowed',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    boxShadow: canCheckOut ? '0 4px 10px rgba(72, 187, 120, 0.4)' : 'none',
-                                    transition: 'all 0.2s',
-                                    opacity: canCheckOut ? 1 : 0.7
-                                }}
-                                disabled={!canCheckOut}
-                                title={canCheckOut ? "Complete Check-out" : `Outstanding Balance: ${bal.toFixed(2)}`}
-                            >
-                                Check-out
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                                    <polyline points="16 17 21 12 16 7"></polyline>
-                                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                                </svg>
-                            </button>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+                                <button
+                                    onClick={handleMainCheckOut}
+                                    disabled={!canCheckOut || activeReservation.status === 'Checked Out'}
+                                    style={{
+                                        background: activeReservation.status === 'Checked Out' ? '#2F855A' : (canCheckOut ? '#48BB78' : '#e2e8f0'),
+                                        color: canCheckOut || activeReservation.status === 'Checked Out' ? 'white' : '#a0aec0',
+                                        border: 'none',
+                                        padding: '0.75rem 1.5rem',
+                                        borderRadius: '8px',
+                                        fontWeight: 600,
+                                        fontSize: '1rem',
+                                        cursor: canCheckOut && activeReservation.status !== 'Checked Out' ? 'pointer' : 'default',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        boxShadow: canCheckOut && activeReservation.status !== 'Checked Out' ? '0 4px 10px rgba(72, 187, 120, 0.4)' : 'none',
+                                        transition: 'all 0.2s',
+                                        opacity: canCheckOut || activeReservation.status === 'Checked Out' ? 1 : 0.7
+                                    }}
+                                    title={canCheckOut ? "Complete Check-out" : `Outstanding Balance: ${bal.toFixed(2)}`}
+                                >
+                                    {activeReservation.status === 'Checked Out' ? 'Checked Out' : 'Check-out'}
+                                    {activeReservation.status === 'Checked Out' ? (
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                        </svg>
+                                    ) : (
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                            <polyline points="16 17 21 12 16 7"></polyline>
+                                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                                        </svg>
+                                    )}
+                                </button>
+                                {activeReservation.invoiceNumber && (
+                                    <div style={{
+                                        fontSize: '0.7rem',
+                                        color: '#2F855A',
+                                        fontWeight: 600,
+                                        marginTop: '2px',
+                                        letterSpacing: '0.5px'
+                                    }}>
+                                        {activeReservation.invoiceNumber}
+                                    </div>
+                                )}
+                            </div>
                         );
                     })()}
                 </div>
