@@ -1315,15 +1315,40 @@ export const ReservationSummary = ({
         const folioChargesOnly = folioOnlyCharges.filter(c => c.type === 'charge');
         const folioPaymentsOnly = folioOnlyCharges.filter(c => c.type === 'payment');
 
-        // Prices are VAT-inclusive, so we need to extract the VAT amount
-        const totalWithTax = folioChargesOnly.reduce((sum, c) => sum + c.amount, 0);
-        // Get VAT rate based on active property's country
-        const taxRate = activeProperty ? getVATRate(activeProperty.country, 'accommodation') : 0.038;
-        // Calculate net amount (price without VAT) from total
-        const subtotal = totalWithTax / (1 + taxRate);
-        const taxAmount = totalWithTax - subtotal;
+        // Multi-VAT Calculation Logic
+        const breakdown = {};
+
+        folioChargesOnly.forEach(charge => {
+            // Determine VAT rate
+            let rate = 0.038; // Default Reduced (Accommodation)
+
+            // Check descriptions for Standard Rate items (8.1% in CH)
+            const desc = charge.description.toLowerCase();
+            if (desc.includes('service fee') ||
+                desc.includes('breakfast') ||
+                desc.includes('parking') ||
+                desc.includes('laundry')) {
+                rate = 0.081;
+            }
+
+            const gross = charge.amount;
+            const net = gross / (1 + rate);
+            const vat = gross - net;
+
+            const rateKey = (rate * 100).toFixed(1);
+            if (!breakdown[rateKey]) breakdown[rateKey] = { net: 0, vat: 0, gross: 0, rate: rate };
+
+            breakdown[rateKey].net += net;
+            breakdown[rateKey].vat += vat;
+            breakdown[rateKey].gross += gross;
+        });
+
+        const totalNet = Object.values(breakdown).reduce((sum, b) => sum + b.net, 0);
+        const totalVat = Object.values(breakdown).reduce((sum, b) => sum + b.vat, 0);
+        const totalGross = folioChargesOnly.reduce((sum, c) => sum + c.amount, 0);
+
         const folioTotalPayments = folioPaymentsOnly.reduce((sum, c) => sum + c.amount, 0);
-        const folioBalance = totalWithTax - folioTotalPayments;
+        const folioBalance = totalGross - folioTotalPayments;
 
         return (
             <div className="invoice-preview-overlay" style={{
@@ -1453,34 +1478,70 @@ export const ReservationSummary = ({
                             {/* Totals */}
                             <div style={{ maxWidth: '400px', marginLeft: 'auto' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
-                                    <span style={{ color: '#4a5568' }}>{t.subtotal}:</span>
-                                    <span style={{ fontWeight: 600, color: '#2d3748' }}>{subtotal.toFixed(2)} {t.currency}</span>
+                                    <span style={{ color: '#4a5568' }}>{t.subtotal} (Net):</span>
+                                    <span style={{ fontWeight: 600, color: '#2d3748' }}>{totalNet.toFixed(2)} {t.currency}</span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
-                                    <span style={{ color: '#4a5568' }}>{t.tax} ({formatVATRate(taxRate)}):</span>
-                                    <span style={{ fontWeight: 600, color: '#2d3748' }}>{taxAmount.toFixed(2)} {t.currency}</span>
+                                    <span style={{ color: '#4a5568' }}>{t.tax} (Total):</span>
+                                    <span style={{ fontWeight: 600, color: '#2d3748' }}>{totalVat.toFixed(2)} {t.currency}</span>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
-                                    <span style={{ color: '#4a5568' }}>{t.total}:</span>
-                                    <span style={{ fontWeight: 700, fontSize: '1.1rem', color: '#2d3748' }}>{totalWithTax.toFixed(2)} {t.currency}</span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 0', fontSize: '1.25rem', fontWeight: 700, color: '#2d3748' }}>
+                                    <span>{t.total}:</span>
+                                    <span>{totalGross.toFixed(2)} {t.currency}</span>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
-                                    <span style={{ color: '#2F855A' }}>{t.payment}:</span>
-                                    <span style={{ fontWeight: 600, color: '#2F855A' }}>-{folioTotalPayments.toFixed(2)} {t.currency}</span>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', color: '#2F855A', borderBottom: '1px solid #e2e8f0' }}>
+                                    <span>{t.payment}:</span>
+                                    <span style={{ fontWeight: 600 }}>-{folioTotalPayments.toFixed(2)} {t.currency}</span>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem 0', background: folioBalance > 0 ? '#fff5f5' : '#f0fff4', marginTop: '0.5rem', paddingLeft: '1rem', paddingRight: '1rem', borderRadius: '6px' }}>
-                                    <span style={{ fontWeight: 700, color: folioBalance > 0 ? '#c53030' : '#2F855A', fontSize: '1.1rem' }}>{t.balance}:</span>
-                                    <span style={{ fontWeight: 700, fontSize: '1.5rem', color: folioBalance > 0 ? '#c53030' : '#2F855A' }}>{folioBalance.toFixed(2)} {t.currency}</span>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem 0', background: folioBalance > 0.01 ? '#fff5f5' : '#f0fff4', marginTop: '0.5rem', paddingLeft: '1rem', paddingRight: '1rem', borderRadius: '6px' }}>
+                                    <span style={{ fontWeight: 700, color: folioBalance > 0.01 ? '#c53030' : '#2F855A', fontSize: '1.1rem' }}>{t.balance}:</span>
+                                    <span style={{ fontWeight: 700, fontSize: '1.5rem', color: folioBalance > 0.01 ? '#c53030' : '#2F855A' }}>{folioBalance.toFixed(2)} {t.currency}</span>
+                                </div>
+
+                                {/* VAT Breakdown Table */}
+                                <div style={{ marginTop: '2rem' }}>
+                                    <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#718096', marginBottom: '0.5rem' }}>VAT Breakdown</h4>
+                                    <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '1px solid #e2e8f0', color: '#718096' }}>
+                                                <th style={{ textAlign: 'left', padding: '4px' }}>Rate</th>
+                                                <th style={{ textAlign: 'right', padding: '4px' }}>Net</th>
+                                                <th style={{ textAlign: 'right', padding: '4px' }}>VAT</th>
+                                                <th style={{ textAlign: 'right', padding: '4px' }}>Gross</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {Object.keys(breakdown || {}).sort().map(rateKey => (
+                                                <tr key={rateKey} style={{ borderBottom: '1px solid #f7fafc' }}>
+                                                    <td style={{ padding: '4px', color: '#4a5568' }}>{rateKey}%</td>
+                                                    <td style={{ textAlign: 'right', padding: '4px' }}>{(breakdown[rateKey]?.net || 0).toFixed(2)}</td>
+                                                    <td style={{ textAlign: 'right', padding: '4px' }}>{(breakdown[rateKey]?.vat || 0).toFixed(2)}</td>
+                                                    <td style={{ textAlign: 'right', padding: '4px' }}>{(breakdown[rateKey]?.gross || 0).toFixed(2)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
 
                             {/* Footer */}
                             <div style={{ marginTop: '3rem', paddingTop: '2rem', borderTop: '1px solid #e2e8f0' }}>
-                                <div style={{ background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: '6px', padding: '1rem', marginBottom: '1.5rem' }}>
-                                    <p style={{ margin: 0, fontSize: '0.9rem', color: '#92400e', textAlign: 'center' }}>
-                                        ⚠️ {t.notOfficialInvoice}
-                                    </p>
-                                </div>
+                                {invoiceType !== 'credit' && (
+                                    <div style={{ background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: '6px', padding: '1rem', marginBottom: '1.5rem' }}>
+                                        <p style={{ margin: 0, fontSize: '0.9rem', color: '#92400e', textAlign: 'center' }}>
+                                            ⚠️ {t.notOfficialInvoice}
+                                        </p>
+                                    </div>
+                                )}
+                                {invoiceType === 'credit' && (
+                                    <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
+                                        <p style={{ margin: 0, fontSize: '0.9rem', color: '#2d3748', fontStyle: 'italic' }}>
+                                            Thank you for your business. Please quote invoice number on remittance.
+                                        </p>
+                                    </div>
+                                )}
                                 <p style={{ textAlign: 'center', color: '#718096', fontSize: '0.9rem', margin: 0 }}>
                                     {t.thankYou}
                                 </p>
