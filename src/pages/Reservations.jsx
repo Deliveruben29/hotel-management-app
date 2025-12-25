@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { MOCK_RESERVATIONS, STATUS_COLORS, UNIT_GROUPS, RATE_PLANS } from '../data/mockData';
+import { STATUS_COLORS, UNIT_GROUPS, RATE_PLANS } from '../data/mockData';
+import { useReservations } from '../context/ReservationContext';
 
 export default function Reservations() {
+    const { reservations, addReservation, updateReservationStatus, updateReservation } = useReservations(); // Use Global State
     const [view, setView] = useState('list'); // 'list' or 'create'
     const [filter, setFilter] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
@@ -9,9 +11,13 @@ export default function Reservations() {
     // Create Booking State
     const [showOffers, setShowOffers] = useState(false);
     const [expandedGroup, setExpandedGroup] = useState(null);
+    const [selectedOffer, setSelectedOffer] = useState(null);
+    const [activeReservation, setActiveReservation] = useState(null); // Renamed from createdReservation
+    // Lifted Date State for creating bookings
+    const [dateRange, setDateRange] = useState({ start: '2025-12-25', end: '2025-12-27' });
 
     // Filter Logic
-    const filteredReservations = MOCK_RESERVATIONS.filter(res => {
+    const filteredReservations = reservations.filter(res => {
         const matchesStatus = filter === 'all' || res.status === filter;
         const matchesSearch = res.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             res.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -19,8 +25,638 @@ export default function Reservations() {
         return matchesStatus && matchesSearch;
     });
 
-    // --- Sub-Components for Create Booking ---
+    // --- Sub-Components ---
 
+    // 2. Guest Details Form
+    const GuestDetailsForm = () => {
+        const [formData, setFormData] = useState({
+            firstName: '',
+            lastName: '',
+            email: ''
+        });
+
+        const handleConfirm = () => {
+            if (!formData.lastName) {
+                alert('Please enter at least a Last Name');
+                return;
+            }
+
+            const newRes = {
+                id: 'RES-' + Math.floor(Math.random() * 10000), // Random ID
+                guestName: `${formData.firstName} ${formData.lastName}`.trim(),
+                status: 'confirmed',
+                arrival: dateRange.start,
+                departure: dateRange.end,
+                room: 'Unassigned',
+                type: selectedOffer?.groupName || 'Standard',
+                rate: selectedOffer?.price || 150,
+                pax: 2,
+                source: 'Direct',
+                email: formData.email
+            };
+
+            addReservation(newRes);
+            setActiveReservation(newRes);
+            setView('summary');
+        };
+
+        return (
+            <div className="fade-in">
+                <header className="view-header" style={{ marginBottom: '2rem' }}>
+                    <div>
+                        <div style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '0.5rem', fontWeight: 500 }}>
+                            <span style={{ cursor: 'pointer' }} onClick={() => setView('create')}>Create new booking</span>
+                            <span style={{ margin: '0 0.5rem' }}>/</span>
+                            Guest Details
+                        </div>
+                        <h1 style={{ fontSize: '1.75rem', fontWeight: 400, color: '#2d3748' }}>Guest Details</h1>
+                    </div>
+                </header>
+
+                <div style={{ background: 'white', padding: '2rem', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', maxWidth: '800px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
+                        <div>
+                            <label style={labelStyle}>First Name</label>
+                            <input
+                                type="text"
+                                style={inputStyle}
+                                value={formData.firstName}
+                                onChange={e => setFormData({ ...formData, firstName: e.target.value })}
+                                placeholder="e.g. John"
+                            />
+                        </div>
+                        <div>
+                            <label style={labelStyle}>Last Name*</label>
+                            <input
+                                type="text"
+                                style={inputStyle}
+                                value={formData.lastName}
+                                onChange={e => setFormData({ ...formData, lastName: e.target.value })}
+                                placeholder="e.g. Doe"
+                            />
+                        </div>
+                        <div style={{ gridColumn: 'span 2' }}>
+                            <label style={labelStyle}>Email</label>
+                            <input
+                                type="email"
+                                style={inputStyle}
+                                value={formData.email}
+                                onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                placeholder="john.doe@example.com"
+                            />
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', borderTop: '1px solid #edf2f7', paddingTop: '1.5rem' }}>
+                        <button className="btn" onClick={() => setView('create')} style={{ background: 'white', border: '1px solid #cbd5e1' }}>Back</button>
+                        <button
+                            className="btn"
+                            onClick={handleConfirm}
+                            style={{ background: '#DD6B20', color: 'white', border: 'none', fontWeight: 600 }}
+                        >
+                            Confirm Booking
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // 3. Detailed Reservation View (Summary/Edit context)
+    const ReservationSummary = () => {
+        if (!activeReservation) return null;
+
+        const [activeTab, setActiveTab] = useState('details'); // 'details' or 'folio'
+        const [extraCharges, setExtraCharges] = useState(activeReservation.extraCharges || []); // Local state for added charges
+
+        const isCheckInAvailable = activeReservation.status === 'confirmed';
+        const isCheckOutAvailable = activeReservation.status === 'checked_in';
+        const isCancelAvailable = activeReservation.status === 'confirmed';
+
+        // Helper to generate daily room charges
+        const getDailyCharges = () => {
+            const charges = [];
+            const arrival = new Date(activeReservation.arrival);
+            const departure = new Date(activeReservation.departure);
+            const diffTime = Math.abs(departure - arrival);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            for (let i = 0; i < diffDays; i++) {
+                const date = new Date(arrival);
+                date.setDate(date.getDate() + i);
+                charges.push({
+                    id: `room-${i}`,
+                    date: date.toLocaleDateString(),
+                    description: `Accommodation - ${activeReservation.type}`,
+                    amount: activeReservation.rate,
+                    type: 'charge'
+                });
+            }
+            return charges;
+        };
+
+        const allCharges = [...getDailyCharges(), ...extraCharges];
+        const totalCharges = allCharges.filter(c => c.type === 'charge').reduce((sum, c) => sum + c.amount, 0);
+        const totalPayments = allCharges.filter(c => c.type === 'payment').reduce((sum, c) => sum + c.amount, 0);
+        const balance = totalCharges - totalPayments;
+
+        const handleAddCharge = () => {
+            const amount = prompt("Enter charge amount:");
+            if (amount) {
+                const desc = prompt("Enter description:", "Restaurant Bar");
+                const newCharge = {
+                    id: `ext-${Date.now()}`,
+                    date: new Date().toLocaleDateString(),
+                    description: desc || "Extra Service",
+                    amount: parseFloat(amount),
+                    type: 'charge'
+                };
+                const newCharges = [...extraCharges, newCharge];
+                setExtraCharges(newCharges);
+
+                const updatedRes = { ...activeReservation, extraCharges: newCharges };
+                updateReservation(updatedRes);
+                setActiveReservation(updatedRes);
+            }
+        };
+
+        const handleAddPayment = () => {
+            const amount = prompt("Enter payment amount:", balance.toFixed(2));
+            if (amount) {
+                const newPayment = {
+                    id: `pay-${Date.now()}`,
+                    date: new Date().toLocaleDateString(),
+                    description: "Payment - Cash/Card",
+                    amount: parseFloat(amount),
+                    type: 'payment'
+                };
+                const newCharges = [...extraCharges, newPayment];
+                setExtraCharges(newCharges);
+
+                const updatedRes = { ...activeReservation, extraCharges: newCharges };
+                updateReservation(updatedRes);
+                setActiveReservation(updatedRes);
+            }
+        };
+
+        const [billingDetails, setBillingDetails] = useState(activeReservation.billingDetails || null); // null = Same as Guest
+        const [isEditingBilling, setIsEditingBilling] = useState(false);
+        const [tempBilling, setTempBilling] = useState({});
+
+        const handleEditBilling = () => {
+            setTempBilling(billingDetails || {
+                type: 'company',
+                name: activeReservation.guestName,
+                address: '',
+                city: '',
+                zip: '',
+                country: 'Switzerland',
+                vatId: ''
+            });
+            setIsEditingBilling(true);
+        };
+
+        const handleSaveBilling = () => {
+            if (!tempBilling.name || !tempBilling.address || !tempBilling.city) {
+                alert("Please fill in Name, Address, and City.");
+                return;
+            }
+            setBillingDetails(tempBilling);
+
+            // Persist to global state
+            const updatedRes = { ...activeReservation, billingDetails: tempBilling };
+            updateReservation(updatedRes);
+            setActiveReservation(updatedRes);
+
+            setIsEditingBilling(false);
+        };
+
+        return (
+            <div className="fade-in">
+                <header className="view-header" style={{ marginBottom: '1rem' }}>
+                    <div>
+                        <div style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '0.5rem', fontWeight: 500 }}>
+                            <span style={{ cursor: 'pointer' }} onClick={() => setView('list')}>Reservations</span>
+                            <span style={{ margin: '0 0.5rem' }}>/</span>
+                            {activeReservation.id}
+                        </div>
+                        <h1 style={{ fontSize: '1.75rem', fontWeight: 400, color: '#2d3748' }}>
+                            {activeTab === 'folio' ? 'Folio & Billing' : 'Reservation Details'}
+                        </h1>
+                    </div>
+                </header>
+
+                {/* Tabs */}
+                <div style={{ display: 'flex', gap: '2rem', borderBottom: '1px solid #e2e8f0', marginBottom: '2rem' }}>
+                    <button
+                        onClick={() => setActiveTab('details')}
+                        style={{
+                            padding: '0.75rem 0',
+                            borderBottom: activeTab === 'details' ? '2px solid #3182ce' : '2px solid transparent',
+                            color: activeTab === 'details' ? '#3182ce' : '#718096',
+                            fontWeight: 600,
+                            background: 'none',
+                            borderTop: 'none', borderLeft: 'none', borderRight: 'none',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Overview
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('guests')}
+                        style={{
+                            padding: '0.75rem 0',
+                            borderBottom: activeTab === 'guests' ? '2px solid #3182ce' : '2px solid transparent',
+                            color: activeTab === 'guests' ? '#3182ce' : '#718096',
+                            fontWeight: 600,
+                            background: 'none',
+                            borderTop: 'none', borderLeft: 'none', borderRight: 'none',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Guests 👥
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('folio')}
+                        style={{
+                            padding: '0.75rem 0',
+                            borderBottom: activeTab === 'folio' ? '2px solid #3182ce' : '2px solid transparent',
+                            color: activeTab === 'folio' ? '#3182ce' : '#718096',
+                            fontWeight: 600,
+                            background: 'none',
+                            borderTop: 'none', borderLeft: 'none', borderRight: 'none',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Folio & Charges
+                    </button>
+                </div>
+
+                {activeTab === 'details' ? (
+                    <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+                        {/* Main Card */}
+                        <div style={{ flex: 2, background: 'white', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+                            <div style={{ padding: '1.5rem', borderBottom: '1px solid #edf2f7', display: 'flex', justifyContent: 'space-between' }}>
+                                <div>
+                                    <h2 style={{ fontSize: '1.25rem', color: '#2d3748', marginBottom: '0.25rem' }}>{activeReservation.guestName}</h2>
+                                    <span style={{
+                                        background: STATUS_COLORS[activeReservation.status]?.bg || '#edf2f7',
+                                        color: STATUS_COLORS[activeReservation.status]?.text || '#2d3748',
+                                        padding: '2px 8px',
+                                        borderRadius: '4px',
+                                        fontSize: '0.8rem',
+                                        fontWeight: 600,
+                                        textTransform: 'uppercase'
+                                    }}>
+                                        {STATUS_COLORS[activeReservation.status]?.label || activeReservation.status}
+                                    </span>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#2d3748' }}>{balance.toFixed(2)} CHF</div>
+                                    <div style={{ fontSize: '0.8rem', color: '#718096' }}>Current Balance</div>
+                                </div>
+                            </div>
+
+                            <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                                <div>
+                                    <label style={labelStyle}>Reservation ID</label>
+                                    <div style={{ fontSize: '1.1rem', fontFamily: 'monospace' }}>{activeReservation.id}</div>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Room Type</label>
+                                    <div>{activeReservation.type}</div>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Arrival</label>
+                                    <div>{new Date(activeReservation.arrival).toLocaleDateString()}</div>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Departure</label>
+                                    <div>{new Date(activeReservation.departure).toLocaleDateString()}</div>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Email</label>
+                                    <div>{activeReservation.email || '—'}</div>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Room</label>
+                                    <div>{activeReservation.room}</div>
+                                </div>
+                            </div>
+
+                            <div style={{ background: '#f7fafc', padding: '1rem 1.5rem', borderTop: '1px solid #edf2f7' }}>
+                                <button style={{ color: '#3182ce', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
+                                    + Add comment / special request
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Actions Sidebar */}
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+                            {/* Lifecycle Actions */}
+                            <div style={{ background: 'white', padding: '1rem', borderRadius: '4px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <h3 style={{ fontSize: '0.85rem', color: '#718096', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Actions</h3>
+
+                                {isCheckInAvailable && (
+                                    <button
+                                        className="btn"
+                                        onClick={() => {
+                                            updateReservationStatus(activeReservation.id, 'checked_in');
+                                            setActiveReservation({ ...activeReservation, status: 'checked_in' });
+                                        }}
+                                        style={{ background: '#E6FFFA', color: '#319795', border: '1px solid #319795', fontWeight: 600, justifyContent: 'center' }}
+                                    >
+                                        keys 🔑 Check In
+                                    </button>
+                                )}
+
+                                {isCheckOutAvailable && (
+                                    <button
+                                        className="btn"
+                                        onClick={() => {
+                                            updateReservationStatus(activeReservation.id, 'checked_out');
+                                            setActiveReservation({ ...activeReservation, status: 'checked_out' });
+                                        }}
+                                        style={{ background: '#EDF2F7', color: '#2D3748', border: '1px solid #718096', fontWeight: 600, justifyContent: 'center' }}
+                                    >
+                                        Check Out 🏁
+                                    </button>
+                                )}
+
+                                {isCancelAvailable && (
+                                    <button
+                                        className="btn"
+                                        onClick={() => {
+                                            if (confirm('Cancel this booking?')) {
+                                                updateReservationStatus(activeReservation.id, 'cancelled');
+                                                setView('list');
+                                            }
+                                        }}
+                                        style={{ background: '#FFF5F5', color: '#C53030', border: '1px solid #C53030', justifyContent: 'center' }}
+                                    >
+                                        Cancel Booking
+                                    </button>
+                                )}
+
+                                {!isCheckInAvailable && !isCheckOutAvailable && !isCancelAvailable && (
+                                    <div style={{ fontSize: '0.9rem', color: '#718096', fontStyle: 'italic', textAlign: 'center' }}>
+                                        No actions available
+                                    </div>
+                                )}
+                            </div>
+
+                            <button className="btn" style={{ background: 'white', border: '1px solid #cbd5e1', justifyContent: 'flex-start' }}>
+                                🖨 Print confirmation
+                            </button>
+                            <button className="btn" style={{ background: 'white', border: '1px solid #cbd5e1', justifyContent: 'flex-start' }}>
+                                ✉️ Resend email
+                            </button>
+                            <div style={{ height: '1px', background: '#cbd5e1', margin: '0.5rem 0' }}></div>
+                            <button className="btn" onClick={() => setView('list')} style={{ background: 'white', border: '1px solid #cbd5e1' }}>
+                                ← Back to List
+                            </button>
+                        </div>
+                    </div>
+                ) : activeTab === 'guests' ? (
+                    <div style={{ animation: 'fadeIn 0.3s ease-in', background: 'white', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '1.5rem' }}>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#2d3748', marginBottom: '1rem' }}>Guest List</h3>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '4px', marginBottom: '1rem' }}>
+                            <div style={{ width: '40px', height: '40px', background: '#3182ce', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>
+                                {activeReservation.guestName.charAt(0)}
+                            </div>
+                            <div>
+                                <div style={{ fontWeight: 600, color: '#2d3748' }}>{activeReservation.guestName}</div>
+                                <div style={{ fontSize: '0.85rem', color: '#718096' }}>Primary Guest • {activeReservation.email || 'No email provided'}</div>
+                            </div>
+                            <div style={{ marginLeft: 'auto', color: '#38A169', background: '#F0FFF4', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                                CONFIRMED
+                            </div>
+                        </div>
+
+                        {activeReservation.pax > 1 && (
+                            <div style={{ padding: '2rem', textAlign: 'center', border: '1px dashed #cbd5e1', borderRadius: '4px', color: '#718096' }}>
+                                <div style={{ marginBottom: '0.5rem' }}>+ {activeReservation.pax - 1} Additional Guest(s)</div>
+                                <button style={{ color: '#3182ce', background: 'none', border: 'none', fontWeight: 500, cursor: 'pointer', fontSize: '0.9rem' }}>
+                                    Add Guest Details
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    // FOLIO TAB CONTENT
+                    <div style={{ animation: 'fadeIn 0.3s ease-in' }}>
+
+                        {/* Billing Address Section */}
+                        <div style={{ background: 'white', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '1.5rem', overflow: 'hidden' }}>
+                            <div style={{ padding: '1rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#2d3748' }}>Billing Address</h3>
+                                {!isEditingBilling && (
+                                    <button
+                                        onClick={handleEditBilling}
+                                        style={{ fontSize: '0.85rem', color: '#3182ce', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}
+                                    >
+                                        Edit Details
+                                    </button>
+                                )}
+                            </div>
+
+                            <div style={{ padding: '1.5rem' }}>
+                                {isEditingBilling ? (
+                                    <div style={{ display: 'grid', gap: '1rem' }}>
+                                        <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem' }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                                <input
+                                                    type="radio"
+                                                    name="billingType"
+                                                    checked={tempBilling.type === 'company'}
+                                                    onChange={() => setTempBilling({ ...tempBilling, type: 'company' })}
+                                                /> Company
+                                            </label>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                                <input
+                                                    type="radio"
+                                                    name="billingType"
+                                                    checked={tempBilling.type === 'agency'}
+                                                    onChange={() => setTempBilling({ ...tempBilling, type: 'agency' })}
+                                                /> Travel Agency
+                                            </label>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                                <input
+                                                    type="radio"
+                                                    name="billingType"
+                                                    checked={tempBilling.type === 'guest'}
+                                                    onChange={() => setTempBilling({ ...tempBilling, type: 'guest' })}
+                                                /> Guest (Personal)
+                                            </label>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                            <div>
+                                                <label style={labelStyle}>Name / Company Name</label>
+                                                <input
+                                                    style={inputStyle}
+                                                    value={tempBilling.name}
+                                                    onChange={(e) => setTempBilling({ ...tempBilling, name: e.target.value })}
+                                                    placeholder={tempBilling.type === 'company' ? 'Company Name' : 'Full Name'}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label style={labelStyle}>VAT ID / Tax Number</label>
+                                                <input
+                                                    style={inputStyle}
+                                                    value={tempBilling.vatId}
+                                                    onChange={(e) => setTempBilling({ ...tempBilling, vatId: e.target.value })}
+                                                    placeholder="Optional"
+                                                />
+                                            </div>
+                                            <div style={{ gridColumn: 'span 2' }}>
+                                                <label style={labelStyle}>Address</label>
+                                                <input
+                                                    style={inputStyle}
+                                                    value={tempBilling.address}
+                                                    onChange={(e) => setTempBilling({ ...tempBilling, address: e.target.value })}
+                                                    placeholder="Street, Number"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label style={labelStyle}>City</label>
+                                                <input
+                                                    style={inputStyle}
+                                                    value={tempBilling.city}
+                                                    onChange={(e) => setTempBilling({ ...tempBilling, city: e.target.value })}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label style={labelStyle}>Country</label>
+                                                <input
+                                                    style={inputStyle}
+                                                    value={tempBilling.country}
+                                                    onChange={(e) => setTempBilling({ ...tempBilling, country: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                                            <button
+                                                className="btn"
+                                                onClick={handleSaveBilling}
+                                                style={{ background: '#3182ce', color: 'white', border: 'none' }}
+                                            >
+                                                Save Billing Details
+                                            </button>
+                                            <button
+                                                className="btn"
+                                                onClick={() => setIsEditingBilling(false)}
+                                                style={{ background: 'white', border: '1px solid #cbd5e1' }}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        {billingDetails ? (
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                                <div>
+                                                    <div style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '0.2rem' }}>Bill To</div>
+                                                    <div style={{ fontWeight: 600, fontSize: '1.1rem', color: '#2d3748' }}>{billingDetails.name}</div>
+                                                    <div style={{ fontSize: '0.85rem', color: '#718096', textTransform: 'uppercase', marginTop: '0.2rem', display: 'inline-block', background: '#edf2f7', padding: '2px 6px', borderRadius: '4px' }}>
+                                                        {billingDetails.type}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontSize: '0.9rem', color: '#4a5568' }}>{billingDetails.address}</div>
+                                                    <div style={{ fontSize: '0.9rem', color: '#4a5568' }}>{billingDetails.zip} {billingDetails.city}</div>
+                                                    <div style={{ fontSize: '0.9rem', color: '#4a5568' }}>{billingDetails.country}</div>
+                                                    {billingDetails.vatId && <div style={{ fontSize: '0.85rem', color: '#718096', marginTop: '0.5rem' }}>VAT: {billingDetails.vatId}</div>}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                <div style={{ color: '#718096', fontStyle: 'italic' }}>
+                                                    Same as Guest ({activeReservation.guestName})
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div style={{ background: 'white', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+                            <div style={{ padding: '1rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#2d3748' }}>Main Bill</h3>
+                            </div>
+
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                                <thead style={{ background: '#f7fafc', color: '#718096', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                                    <tr>
+                                        <th style={{ padding: '1rem', textAlign: 'left' }}>Date</th>
+                                        <th style={{ padding: '1rem', textAlign: 'left' }}>Description</th>
+                                        <th style={{ padding: '1rem', textAlign: 'right' }}>Amount (CHF)</th>
+                                        <th style={{ padding: '1rem', textAlign: 'right' }}>VAT</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {allCharges.map((charge) => (
+                                        <tr key={charge.id} style={{ borderBottom: '1px solid #edf2f7' }}>
+                                            <td style={{ padding: '1rem' }}>{charge.date}</td>
+                                            <td style={{ padding: '1rem', fontWeight: 500, color: charge.type === 'payment' ? '#2F855A' : '#2d3748' }}>
+                                                {charge.description}
+                                            </td>
+                                            <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 600, color: charge.type === 'payment' ? '#2F855A' : '#2d3748' }}>
+                                                {charge.type === 'payment' ? '-' : ''}{charge.amount.toFixed(2)}
+                                            </td>
+                                            <td style={{ padding: '1rem', textAlign: 'right', color: '#718096' }}>
+                                                {charge.type === 'charge' ? (charge.amount * 0.077).toFixed(2) : '0.00'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot style={{ background: '#f8fafc', fontWeight: 600 }}>
+                                    <tr>
+                                        <td colSpan="2" style={{ padding: '1rem', textAlign: 'right' }}>Total Charges:</td>
+                                        <td style={{ padding: '1rem', textAlign: 'right' }}>{totalCharges.toFixed(2)}</td>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <td colSpan="2" style={{ padding: '1rem', textAlign: 'right', color: '#2F855A' }}>Total Payments:</td>
+                                        <td style={{ padding: '1rem', textAlign: 'right', color: '#2F855A' }}>-{totalPayments.toFixed(2)}</td>
+                                        <td></td>
+                                    </tr>
+                                    <tr style={{ background: '#ebf8ff', borderTop: '2px solid #3182ce', fontSize: '1rem' }}>
+                                        <td colSpan="2" style={{ padding: '1rem', textAlign: 'right', color: '#2d3748' }}>Balance Due:</td>
+                                        <td style={{ padding: '1rem', textAlign: 'right', color: '#c53030' }}>{balance.toFixed(2)}</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                            <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                <button
+                                    onClick={handleAddCharge}
+                                    className="btn"
+                                    style={{ background: 'white', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
+                                >
+                                    + Add Charge
+                                </button>
+                                <button
+                                    onClick={handleAddPayment}
+                                    className="btn"
+                                    style={{ background: '#48BB78', color: 'white', border: 'none', fontSize: '0.85rem' }}
+                                >
+                                    Add Payment
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    // 1. Create Booking View (Modified)
     const CreateBookingView = () => (
         <div className="fade-in">
             <header className="view-header" style={{ marginBottom: '2rem' }}>
@@ -44,9 +680,26 @@ export default function Reservations() {
                     <div style={{ gridColumn: 'span 2' }}>
                         <label style={labelStyle}>Arrival date - Departure date*</label>
                         <div style={{ display: 'flex', border: '1px solid #cbd5e1', borderRadius: '4px', overflow: 'hidden' }}>
-                            <input type="date" defaultValue="2025-12-21" style={{ ...inputStyle, border: 'none', width: '50%' }} />
+                            <input
+                                type="date"
+                                value={dateRange.start}
+                                onChange={(e) => {
+                                    const newDate = e.target.value;
+                                    if (newDate < '2025-12-25') {
+                                        alert('Cannot book dates in the past (before 2025-12-25)');
+                                        return;
+                                    }
+                                    setDateRange({ ...dateRange, start: newDate });
+                                }}
+                                style={{ ...inputStyle, border: 'none', width: '50%' }}
+                            />
                             <span style={{ padding: '0.5rem', background: '#f7fafc', color: '#718096' }}>-</span>
-                            <input type="date" defaultValue="2025-12-22" style={{ ...inputStyle, border: 'none', width: '50%' }} />
+                            <input
+                                type="date"
+                                value={dateRange.end}
+                                onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                                style={{ ...inputStyle, border: 'none', width: '50%' }}
+                            />
                         </div>
                     </div>
 
@@ -112,7 +765,7 @@ export default function Reservations() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <h2 style={{ fontSize: '1.25rem', fontWeight: 500, color: '#2d3748' }}>Offers</h2>
                         <div style={{ fontSize: '0.9rem', color: '#4a5568' }}>
-                            📅 21 Dec 2025 - 22 Dec 2025, 1 night
+                            📅 {new Date(dateRange.start).toLocaleDateString()} - {new Date(dateRange.end).toLocaleDateString()}
                         </div>
                     </div>
 
@@ -174,7 +827,18 @@ export default function Reservations() {
                                                         <option>1</option>
                                                         <option>2</option>
                                                     </select>
-                                                    <button style={{ fontSize: '0.8rem', color: '#D69E2E', background: 'none', border: 'none', fontWeight: 600, cursor: 'pointer' }}>Select offer ›</button>
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedOffer({
+                                                                groupName: group.name,
+                                                                price: 100 + (plan.basePrice || 0)
+                                                            });
+                                                            setView('guest-details');
+                                                        }}
+                                                        style={{ fontSize: '0.8rem', color: '#D69E2E', background: 'none', border: 'none', fontWeight: 600, cursor: 'pointer' }}
+                                                    >
+                                                        Select offer ›
+                                                    </button>
                                                 </div>
                                             </div>
                                         ))}
@@ -188,12 +852,11 @@ export default function Reservations() {
         </div>
     );
 
-
     // --- Main Render ---
 
-    if (view === 'create') {
-        return <CreateBookingView />;
-    }
+    if (view === 'create') return <CreateBookingView />;
+    if (view === 'guest-details') return <GuestDetailsForm />;
+    if (view === 'summary') return <ReservationSummary />;
 
     // Default List View
     return (
@@ -292,7 +955,15 @@ export default function Reservations() {
                         {filteredReservations.map((res) => {
                             const statusStyle = STATUS_COLORS[res.status] || { bg: '#eee', text: '#555', label: res.status };
                             return (
-                                <tr key={res.id} style={{ borderBottom: '1px solid #edf2f7' }} className="table-row-hover">
+                                <tr
+                                    key={res.id}
+                                    style={{ borderBottom: '1px solid #edf2f7', cursor: 'pointer' }}
+                                    className="table-row-hover"
+                                    onDoubleClick={() => {
+                                        setActiveReservation(res);
+                                        setView('summary');
+                                    }}
+                                >
                                     <td style={cellStyle}>
                                         <span style={{
                                             backgroundColor: statusStyle.bg,

@@ -93,8 +93,7 @@ body {
   padding-right: 1rem;
   /* Add padding for content */
   /* Custom scrollbar for webkit */
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
+  /* Custom scrollbar for webkit */
 }
 
 .sidebar-nav::-webkit-scrollbar {
@@ -299,10 +298,33 @@ body {
 .btn-primary {
   background-color: var(--color-primary);
   color: white;
-  box-shadow: 0 4px 12px rgba(var(--primary-hue), var(--primary-sat), 50%, 0.2);
+  box-shadow: 0 4px 12px hsla(var(--primary-hue), var(--primary-sat), 35%, 0.2);
 }
 
 .btn-primary:hover {
   background-color: var(--color-primary-hover);
   transform: translateY(-1px);
+}
+
+/* Hover effect for dropdown menu items */
+.hover-bg-gray:hover {
+  background-color: #f7fafc !important;
+}
+
+/* Apaleo primary button style */
+.btn-apaleo-primary {
+  background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-apaleo-primary:hover {
+  background: linear-gradient(135deg, #2c5282 0%, #2b4c7e 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(49, 130, 206, 0.3);
 }

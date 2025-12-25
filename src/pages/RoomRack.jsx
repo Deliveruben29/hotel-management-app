@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UNITS, UNIT_GROUPS, MOCK_RESERVATIONS, STATUS_COLORS } from '../data/mockData';
+import { UNITS, UNIT_GROUPS, STATUS_COLORS } from '../data/mockData';
+import { useReservations } from '../context/ReservationContext';
 
 export default function RoomRack() {
     const navigate = useNavigate();
+    const { reservations, updateReservation, updateReservationStatus } = useReservations(); // Global State
 
     // State for timeline control
     const [startDate, setStartDate] = useState(new Date('2025-12-19')); // Default to match mock data
@@ -31,8 +33,7 @@ export default function RoomRack() {
         })).filter(g => g.units.length > 0);
     }, []);
 
-    // Local state for reservations to support Drag & Drop
-    const [reservations, setReservations] = useState(MOCK_RESERVATIONS);
+    // Local state for drag interaction
     const [draggedRes, setDraggedRes] = useState(null);
 
     // Helper to position reservations
@@ -107,19 +108,14 @@ export default function RoomRack() {
             return `${year}-${month}-${day}`;
         };
 
-        const updatedReservations = reservations.map(r => {
-            if (r.id === draggedRes.id) {
-                return {
-                    ...r,
-                    room: targetRoom,
-                    arrival: toYMD(newStart),
-                    departure: toYMD(newEnd)
-                };
-            }
-            return r;
-        });
+        const updatedRes = {
+            ...draggedRes,
+            room: targetRoom,
+            arrival: toYMD(newStart),
+            departure: toYMD(newEnd)
+        };
 
-        setReservations(updatedReservations);
+        updateReservation(updatedRes);
         setDraggedRes(null);
     };
 
@@ -432,27 +428,63 @@ export default function RoomRack() {
                         <div>
                             <h3 style={{ fontSize: '0.9rem', color: '#718096', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Actions</h3>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                {/* Dynamic Status Actions */}
+                                {selectedRes.status === 'confirmed' && (
+                                    <button
+                                        onClick={() => {
+                                            updateReservationStatus(selectedRes.id, 'checked_in');
+                                            setSelectedRes({ ...selectedRes, status: 'checked_in' }); // Optimistic UI update
+                                        }}
+                                        className="btn"
+                                        style={{ width: '100%', textAlign: 'left', padding: '0.75rem', border: '1px solid #38B2AC', background: '#E6FFFA', color: '#38B2AC', fontWeight: 600 }}
+                                    >
+                                        Keys 🔑 Check In
+                                    </button>
+                                )}
+
+                                {selectedRes.status === 'checked_in' && (
+                                    <button
+                                        onClick={() => {
+                                            updateReservationStatus(selectedRes.id, 'checked_out');
+                                            setSelectedRes({ ...selectedRes, status: 'checked_out' });
+                                        }}
+                                        className="btn"
+                                        style={{ width: '100%', textAlign: 'left', padding: '0.75rem', border: '1px solid #718096', background: '#EDF2F7', color: '#2d3748', fontWeight: 600 }}
+                                    >
+                                        🏁 Check Out
+                                    </button>
+                                )}
+
                                 <button className="btn" style={{ width: '100%', textAlign: 'left', padding: '0.75rem', border: '1px solid #e2e8f0', background: 'white' }}>
                                     📝 Edit Reservation
                                 </button>
-                                <button className="btn" style={{ width: '100%', textAlign: 'left', padding: '0.75rem', border: '1px solid #e2e8f0', background: 'white' }}>
-                                    💳 Add Payment
-                                </button>
-                                <button className="btn" style={{ width: '100%', textAlign: 'left', padding: '0.75rem', border: '1px solid #e2e8f0', background: 'white', color: '#e53e3e' }}>
-                                    ✖ Cancel Booking
-                                </button>
+
+                                {selectedRes.status !== 'cancelled' && selectedRes.status !== 'checked_out' && (
+                                    <button
+                                        onClick={() => {
+                                            if (window.confirm('Are you sure you want to cancel this reservation?')) {
+                                                updateReservationStatus(selectedRes.id, 'cancelled');
+                                                setSelectedRes(null);
+                                            }
+                                        }}
+                                        className="btn"
+                                        style={{ width: '100%', textAlign: 'left', padding: '0.75rem', border: '1px solid #e2e8f0', background: 'white', color: '#e53e3e' }}
+                                    >
+                                        ✖ Cancel Booking
+                                    </button>
+                                )}
                             </div>
                         </div>
-                    </div>
 
-                    <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                        <button
-                            className="btn btn-apaleo-primary"
-                            style={{ width: '100%', background: '#F6AD55', color: 'white', border: 'none', padding: '0.8rem', fontWeight: 600, borderRadius: '4px' }}
-                            onClick={() => navigate('/reservations')} // Go to full details
-                        >
-                            Open Full Details
-                        </button>
+                        <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                            <button
+                                className="btn btn-apaleo-primary"
+                                style={{ width: '100%', background: '#F6AD55', color: 'white', border: 'none', padding: '0.8rem', fontWeight: 600, borderRadius: '4px' }}
+                                onClick={() => navigate('/reservations')}
+                            >
+                                Open Full Details
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
