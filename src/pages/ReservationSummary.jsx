@@ -1986,7 +1986,28 @@ export const ReservationSummary = ({
                             </div>
                             <div>
                                 <label style={labelStyle}>Room</label>
-                                <div>{activeReservation.room}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                    <span style={{ fontWeight: 500 }}>{activeReservation.room}</span>
+                                    <button
+                                        onClick={() => {
+                                            const newRoom = prompt("Enter new room number:", activeReservation.room);
+                                            if (newRoom && newRoom.trim() !== "" && newRoom !== activeReservation.room) {
+                                                const updated = { ...activeReservation, room: newRoom };
+                                                updateReservation(updated);
+                                                setActiveReservation(updated);
+                                            }
+                                        }}
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            color: '#3182ce',
+                                            fontSize: '0.85rem',
+                                            cursor: 'pointer',
+                                            textDecoration: 'underline',
+                                            padding: 0
+                                        }}
+                                    >Change</button>
+                                </div>
                             </div>
                             <div>
                                 <label style={labelStyle}>Rate</label>
