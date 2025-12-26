@@ -22,7 +22,7 @@ export const MOCK_RESERVATIONS = [
     {
         id: 'RES-1002',
         guestName: 'Marco Polo',
-        status: 'checked_in',
+        status: 'confirmed',
         arrival: '2025-12-24',
         departure: '2025-12-28',
         room: '305',

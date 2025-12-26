@@ -70,5 +70,35 @@ export const RateService = {
             .eq('id', id);
 
         if (error) throw error;
+    },
+
+    async getDailyRates(startDate, endDate) {
+        const { data, error } = await supabase
+            .from('daily_rates')
+            .select('*')
+            .gte('date', startDate)
+            .lte('date', endDate);
+
+        if (error) throw error;
+
+        return data.map(r => ({
+            id: r.id,
+            date: r.date,
+            groupId: r.unit_group_id,
+            price: Number(r.base_price)
+        }));
+    },
+
+    async upsertDailyRate(rateData) {
+        const { error } = await supabase
+            .from('daily_rates')
+            .upsert({
+                date: rateData.date,
+                unit_group_id: rateData.groupId,
+                base_price: rateData.price,
+                currency: 'CHF'
+            }, { onConflict: 'date,unit_group_id' });
+
+        if (error) throw error;
     }
 };

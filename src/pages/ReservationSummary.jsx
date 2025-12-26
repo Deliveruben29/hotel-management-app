@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { STATUS_COLORS, MOCK_COMPANIES, COUNTRIES, MOCK_SERVICES } from '../data/mockData';
+import { STATUS_COLORS, MOCK_COMPANIES, COUNTRIES } from '../data/mockData';
 import { INVOICE_TRANSLATIONS } from '../data/invoiceTranslations';
 import { useProperty } from '../context/PropertyContext';
 import { getVATRate, formatVATRate } from '../data/vatRates';
+import { InventoryService } from '../services/inventoryService';
+import { ServiceService } from '../services/serviceService';
 
 export const ReservationSummary = ({
     activeReservation,
@@ -81,6 +83,29 @@ export const ReservationSummary = ({
     // Credit Card Guarantee State
     const [creditCard, setCreditCard] = useState(null); // null or { type, last4, expiry, holder, isVCC }
     const [showCardModal, setShowCardModal] = useState(false);
+
+    // Room Assignment State
+    const [units, setUnits] = useState([]);
+    const [isEditingRoom, setIsEditingRoom] = useState(false);
+
+    // Services State
+    const [availableServices, setAvailableServices] = useState([]);
+
+    // Load Data (Units & Services)
+    React.useEffect(() => {
+        const loadData = async () => {
+            try {
+                const [unitsData, servicesData] = await Promise.all([
+                    InventoryService.getUnits(),
+                    ServiceService.getAll()
+                ]);
+                setUnits(unitsData);
+                setAvailableServices(servicesData.map(s => ({ ...s, currency: 'CHF' })));
+            } catch (e) { console.error("Could not load units or services", e); }
+        };
+        loadData();
+    }, []);
+
     // END: State Definitions
 
     // Get active property for VAT calculation
@@ -93,6 +118,7 @@ export const ReservationSummary = ({
     // Helper to generate daily room charges
     const getDailyCharges = () => {
         if (!activeReservation) return [];
+        if (activeReservation.status === 'no_show' || activeReservation.status === 'cancelled') return []; // No daily charges for No-Show/Cancelled
         const start = new Date(activeReservation.arrival);
         const end = new Date(activeReservation.departure);
         const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
@@ -120,7 +146,7 @@ export const ReservationSummary = ({
         // Check if Service Fee already exists
         const hasServiceFee = extraCharges.some(c => c.description && c.description.includes('Service Fee'));
 
-        if (!hasServiceFee && activeReservation.pax > 0) {
+        if (!hasServiceFee && activeReservation.pax > 0 && activeReservation.status !== 'no_show' && activeReservation.status !== 'cancelled') {
             const SERVICE_FEE_PER_GUEST_PER_NIGHT = 3.50; // CHF per guest per night
             const start = new Date(activeReservation.arrival);
             const end = new Date(activeReservation.departure);
@@ -174,7 +200,7 @@ export const ReservationSummary = ({
     };
 
     const handleSubmitCharge = () => {
-        const selectedService = MOCK_SERVICES.find(s => s.id === chargeFormData.serviceId);
+        const selectedService = availableServices.find(s => s.id === chargeFormData.serviceId);
         if (!selectedService) {
             alert('Please select a service');
             return;
@@ -997,7 +1023,7 @@ export const ReservationSummary = ({
     const renderAddChargeModal = () => {
         if (!showAddChargeModal) return null;
 
-        const selectedService = MOCK_SERVICES.find(s => s.id === chargeFormData.serviceId);
+        const selectedService = availableServices.find(s => s.id === chargeFormData.serviceId);
 
         return (
             <div style={{
@@ -1028,7 +1054,7 @@ export const ReservationSummary = ({
                                 }}
                             >
                                 <option value="">Select a service...</option>
-                                {MOCK_SERVICES.map(service => (
+                                {availableServices.map(service => (
                                     <option key={service.id} value={service.id}>
                                         {service.name} - {service.price.toFixed(2)} {service.currency}
                                     </option>
@@ -1895,25 +1921,62 @@ export const ReservationSummary = ({
                         const bal = allCharges.reduce((sum, c) => sum + (c.type === 'charge' ? c.amount : -c.amount), 0);
                         const canCheckOut = Math.abs(bal) <= 0.05;
                         const status = activeReservation.status;
+                        const isConfirmed = status === 'confirmed' || status === 'CONFIRMED';
+                        const isInHouse = status === 'IN_HOUSE' || status === 'in_house' || status === 'checked_in'; // Fix: Include checked_in
 
-                        // Action Handler
+                        // Action Handlers
                         const handleLifecycleAction = () => {
-                            if (status === 'confirmed' || status === 'CONFIRMED') {
+                            if (isConfirmed) {
                                 if (confirm("Proceed with Check-in?")) {
-                                    const updated = { ...activeReservation, status: 'IN_HOUSE' }; // Use consistent casing
+                                    const updated = { ...activeReservation, status: 'IN_HOUSE' };
                                     updateReservation(updated);
                                     setActiveReservation(updated);
                                     setSuccessMessage("Check-in Successful");
                                     setShowSuccessMessage(true);
                                     setTimeout(() => setShowSuccessMessage(false), 3000);
                                 }
-                            } else if (status === 'IN_HOUSE' || status === 'in_house') {
+                            } else if (isInHouse) {
                                 handleMainCheckOut();
                             }
                         };
 
+                        const handleNoShow = () => {
+                            if (confirm("Confirm MARK AS NO-SHOW?\n\nThis will: \n1. Cancel daily accommodation charges.\n2. Post a full 'No Show' charge.\n3. Remove Service Fees.")) {
+                                // 1. Calculate Total Accommodation
+                                const start = new Date(activeReservation.arrival);
+                                const end = new Date(activeReservation.departure);
+                                const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+                                const totalAmount = nights * activeReservation.rate;
+
+                                // 2. Filter out Service Fees from existing extraCharges
+                                const filteredExtras = extraCharges.filter(c => !c.description.includes('Service Fee'));
+
+                                // 3. Add No Show Charge
+                                const noShowCharge = {
+                                    id: `ns-${Date.now()}`,
+                                    date: new Date().toLocaleDateString(),
+                                    description: `No Show - ${activeReservation.type}`,
+                                    amount: totalAmount,
+                                    type: 'charge',
+                                    folioId: 1
+                                };
+
+                                const newExtras = [...filteredExtras, noShowCharge];
+                                setExtraCharges(newExtras);
+
+                                // 4. Update Reservation Status & Charges
+                                const updated = {
+                                    ...activeReservation,
+                                    status: 'no_show',
+                                    extraCharges: newExtras // Persist extras if backend supports it in one go, otherwise state update handles UI
+                                };
+                                updateReservation(updated);
+                                setActiveReservation(updated);
+                            }
+                        };
+
                         // Determine Button State
-                        let btnLabel = "Check-in";
+                        let btnLabel = isConfirmed ? "Check-in" : "Status";
                         let btnColor = "#48BB78";
                         let isDisabled = false;
                         let btnIcon = (
@@ -1924,7 +1987,7 @@ export const ReservationSummary = ({
                             </svg>
                         );
 
-                        if (status === 'IN_HOUSE' || status === 'in_house') {
+                        if (isInHouse) {
                             btnLabel = "Check-out";
                             btnColor = canCheckOut ? "#48BB78" : "#e2e8f0";
                             isDisabled = !canCheckOut;
@@ -1944,6 +2007,11 @@ export const ReservationSummary = ({
                                     <polyline points="20 6 9 17 4 12"></polyline>
                                 </svg>
                             );
+                        } else if (status === 'no_show') {
+                            btnLabel = "No Show";
+                            btnColor = "#718096"; // Gray
+                            isDisabled = true;
+                            btnIcon = <span>🚫</span>;
                         }
 
                         return (
@@ -1972,6 +2040,18 @@ export const ReservationSummary = ({
                                     {btnLabel}
                                     {btnIcon}
                                 </button>
+                                {isConfirmed && (
+                                    <button
+                                        onClick={handleNoShow}
+                                        style={{
+                                            background: 'none', border: '1px solid #e2e8f0', color: '#718096',
+                                            padding: '0.4rem 1rem', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 600,
+                                            cursor: 'pointer', marginTop: '0.5rem'
+                                        }}
+                                    >
+                                        Mark as No-Show
+                                    </button>
+                                )}
                                 {activeReservation.invoiceNumber && (
                                     <div style={{
                                         fontSize: '0.7rem',
@@ -2091,26 +2171,45 @@ export const ReservationSummary = ({
                             <div>
                                 <label style={labelStyle}>Room</label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    <span style={{ fontWeight: 500 }}>{activeReservation.room}</span>
-                                    <button
-                                        onClick={() => {
-                                            const newRoom = prompt("Enter new room number:", activeReservation.room);
-                                            if (newRoom && newRoom.trim() !== "" && newRoom !== activeReservation.room) {
-                                                const updated = { ...activeReservation, room: newRoom };
-                                                updateReservation(updated);
-                                                setActiveReservation(updated);
-                                            }
-                                        }}
-                                        style={{
-                                            background: 'none',
-                                            border: 'none',
-                                            color: '#3182ce',
-                                            fontSize: '0.85rem',
-                                            cursor: 'pointer',
-                                            textDecoration: 'underline',
-                                            padding: 0
-                                        }}
-                                    >Change</button>
+                                    {!isEditingRoom ? (
+                                        <>
+                                            <span style={{ fontWeight: 500 }}>{activeReservation.room}</span>
+                                            <button
+                                                onClick={() => setIsEditingRoom(true)}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    color: '#3182ce',
+                                                    fontSize: '0.85rem',
+                                                    cursor: 'pointer',
+                                                    textDecoration: 'underline',
+                                                    padding: 0
+                                                }}
+                                            >Change</button>
+                                        </>
+                                    ) : (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <select
+                                                autoFocus
+                                                value={units.some(u => u.name === activeReservation.room) ? activeReservation.room : ''}
+                                                onChange={(e) => {
+                                                    const updated = { ...activeReservation, room: e.target.value };
+                                                    updateReservation(updated);
+                                                    setActiveReservation(updated);
+                                                    setIsEditingRoom(false);
+                                                }}
+                                                style={{ padding: '0.25rem', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
+                                            >
+                                                <option value="" disabled>Select Unit...</option>
+                                                {units.map(u => (
+                                                    <option key={u.id} value={u.name}>
+                                                        {u.name} ({u.condition})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <button onClick={() => setIsEditingRoom(false)} style={{ background: 'none', border: 'none', color: '#718096', cursor: 'pointer' }}>✖</button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div>

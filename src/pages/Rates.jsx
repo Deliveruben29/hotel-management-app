@@ -12,6 +12,7 @@ export default function Rates() {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingPlan, setEditingPlan] = useState(null);
+    const [dailyRates, setDailyRates] = useState({}); // { 'YYYY-MM-DD_UG-ID': price }
 
     // Form State
     const [formData, setFormData] = useState({
@@ -26,6 +27,34 @@ export default function Rates() {
     useEffect(() => {
         loadRates();
     }, []);
+
+    useEffect(() => {
+        if (activeTab === 'calendar') {
+            loadDailyRates();
+        }
+    }, [activeTab]);
+
+    const loadDailyRates = async () => {
+        try {
+            // Fetch for dynamic range (Today + 14 days buffer)
+            const today = new Date();
+            today.setHours(12, 0, 0, 0); // Noon to avoid timezone boundary issues
+            const startStr = today.toISOString().split('T')[0];
+
+            const end = new Date(today);
+            end.setDate(end.getDate() + 14);
+            const endStr = end.toISOString().split('T')[0];
+
+            const rates = await RateService.getDailyRates(startStr, endStr);
+            const map = {};
+            rates.forEach(r => {
+                map[`${r.date}_${r.groupId}`] = r.price;
+            });
+            setDailyRates(map);
+        } catch (e) {
+            console.error("Failed to load daily rates", e);
+        }
+    };
 
     const loadRates = async () => {
         try {
@@ -207,11 +236,27 @@ export default function Rates() {
 
     const renderPricingGrid = () => {
         // Dynamic Grid using live ratePlans
+        const startDate = new Date(); // Start Today
+        startDate.setHours(12, 0, 0, 0);
+
         const days = Array.from({ length: 7 }, (_, i) => {
-            const d = new Date('2025-12-21');
+            const d = new Date(startDate);
             d.setDate(d.getDate() + i);
             return d;
         });
+
+        const handleRateClick = async (date, groupId, currentBase) => {
+            const val = prompt(`Set Base Rate for ${groupId} on ${date.toLocaleDateString()}:`, currentBase);
+            if (val !== null) {
+                const price = parseFloat(val);
+                if (isNaN(price)) return;
+                const dateStr = date.toISOString().split('T')[0];
+                try {
+                    await RateService.upsertDailyRate({ date: dateStr, groupId, price });
+                    loadDailyRates(); // Refresh
+                } catch (e) { alert("Error saving rate: " + e.message); }
+            }
+        };
 
         return (
             <div className="table-container" style={{
@@ -246,24 +291,43 @@ export default function Rates() {
                                         <td style={{ ...cellStyle, borderRight: '1px solid #edf2f7', position: 'sticky', left: 0, background: 'white' }}>
                                             {group.name}
                                         </td>
-                                        {days.map((_, i) => {
-                                            // Base calculation: Starts at 100 for Rank 1
-                                            let price = 100 + ((group.rank - 1) * 30);
+                                        {days.map((d, i) => {
+                                            const dateStr = d.toISOString().split('T')[0];
+                                            const key = `${dateStr}_${group.id}`;
 
-                                            // Rate Plan Adjustment
-                                            if (plan.basePrice !== null && plan.basePrice !== 0) {
-                                                if (plan.basePrice < 0) price = price * (1 - (Math.abs(plan.basePrice) / 100)); // % discount
-                                                else price += plan.basePrice; // Flat add
+                                            // Get Dynamic Base Rate or Fallback
+                                            let baseRate = dailyRates[key];
+                                            if (baseRate === undefined) {
+                                                baseRate = 100 + ((group.rank - 1) * 30); // Default Logic
                                             }
 
-                                            // Weekend hike
-                                            if (i === 5 || i === 6) price += 15;
+                                            // Rate Plan Adjustment (Calculated from Base)
+                                            let price = baseRate;
+                                            if (plan.basePrice !== null && plan.basePrice !== 0) {
+                                                if (plan.basePrice < 0) price = price * (1 - (Math.abs(plan.basePrice) / 100)); // % discount (Convention: negative is discount %)
+                                                else price += plan.basePrice; // Positive is flat add? Or handle convention.
+                                                // Existing logic assumed < 0 is %. > 0 is Flat.
+                                            }
+
+                                            // Weekend hike (On top of base?) - Let's remove hardcoded hike if we have DB
+                                            // Or keep it for fallback.
+                                            // If dailyRates[key] exists, we trust it pure.
+                                            // If not, we might apply logic.
+                                            // I'll skip Logic-Hike if DB rate exists.
+                                            if (dailyRates[key] === undefined && (d.getDay() === 5 || d.getDay() === 6)) price += 15;
 
                                             return (
-                                                <td key={i} style={{ ...cellStyle, textAlign: 'center', cursor: 'pointer' }}>
-                                                    <div style={{ padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid transparent', transition: 'all 0.1s' }}
-                                                        onMouseEnter={(e) => { e.currentTarget.style.border = '1px solid var(--color-primary)'; e.currentTarget.style.background = 'var(--color-primary-light)' }}
-                                                        onMouseLeave={(e) => { e.currentTarget.style.border = '1px solid transparent'; e.currentTarget.style.background = 'transparent' }}
+                                                <td key={i}
+                                                    style={{ ...cellStyle, textAlign: 'center', cursor: 'pointer' }}
+                                                    onClick={() => handleRateClick(d, group.id, baseRate)}
+                                                    title={`Click to set Base Rate for ${group.name}`}
+                                                >
+                                                    <div style={{
+                                                        padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid transparent', transition: 'all 0.1s',
+                                                        backgroundColor: dailyRates[key] !== undefined ? '#F0FFF4' : 'transparent' // Green tint if overridden
+                                                    }}
+                                                        onMouseEnter={(e) => { e.currentTarget.style.border = '1px solid var(--color-primary)'; }}
+                                                        onMouseLeave={(e) => { e.currentTarget.style.border = '1px solid transparent'; }}
                                                     >
                                                         {Math.round(price)}
                                                     </div>
