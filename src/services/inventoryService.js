@@ -64,5 +64,27 @@ export const InventoryService = {
         const { error } = await supabase.from('units').insert([payload]);
         if (error) throw error;
         return payload;
+    },
+
+    async updateUnit(id, updates) {
+        const payload = {};
+        if (updates.condition) payload.condition = updates.condition;
+        // Add other fields as needed mapping camelCase to snake_case
+
+        const { data, error } = await supabase
+            .from('units')
+            .update(payload)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return {
+            id: data.id,
+            name: data.name,
+            groupId: data.group_id,
+            condition: data.condition,
+            attributes: data.attributes || []
+        };
     }
 };
