@@ -305,10 +305,22 @@ export const ReservationSummary = ({
 
     // --- Guest Profile Handlers ---
     const handleEditGuest = () => {
+        // Split name (Logic: everything after last space is surname)
+        const fullName = activeReservation.guestName || '';
+        const lastSpaceIdx = fullName.lastIndexOf(' ');
+        const firstName = lastSpaceIdx > -1 ? fullName.substring(0, lastSpaceIdx) : fullName;
+        const lastName = lastSpaceIdx > -1 ? fullName.substring(lastSpaceIdx + 1) : '';
+
         setGuestFormData({
-            guestName: activeReservation.guestName,
+            firstName: firstName,
+            lastName: lastName,
             email: activeReservation.email || '',
             phone: activeReservation.phone || '',
+            birthDate: activeReservation.birthDate || '',
+            gender: activeReservation.gender || '',
+            language: activeReservation.language || '',
+            identificationType: activeReservation.identificationType || '',
+            identificationNumber: activeReservation.identificationNumber || '',
             street: activeReservation.street || '',
             postalCode: activeReservation.postalCode || '',
             city: activeReservation.city || '',
@@ -320,11 +332,17 @@ export const ReservationSummary = ({
     };
 
     const handleSaveGuest = () => {
+        const fullName = `${guestFormData.firstName || ''} ${guestFormData.lastName || ''}`.trim();
         const updatedRes = {
             ...activeReservation,
-            guestName: guestFormData.guestName,
+            guestName: fullName,
             email: guestFormData.email,
             phone: guestFormData.phone,
+            birthDate: guestFormData.birthDate,
+            gender: guestFormData.gender,
+            language: guestFormData.language,
+            identificationType: guestFormData.identificationType,
+            identificationNumber: guestFormData.identificationNumber,
             street: guestFormData.street,
             postalCode: guestFormData.postalCode,
             city: guestFormData.city,
@@ -447,31 +465,75 @@ export const ReservationSummary = ({
                     {/* Guest Personal Data */}
                     <div style={{ marginBottom: '2rem' }}>
                         <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#2d3748', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Personal Information</h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                            <div>
-                                <label style={labelStyle}>Full Name</label>
-                                <input
-                                    style={inputStyle}
-                                    value={guestFormData.guestName || ''}
-                                    onChange={e => setGuestFormData({ ...guestFormData, guestName: e.target.value })}
-                                />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+                            {/* Row 1: Name */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                                <div>
+                                    <label style={labelStyle}>First Name</label>
+                                    <input style={inputStyle} value={guestFormData.firstName || ''} onChange={e => setGuestFormData({ ...guestFormData, firstName: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Surname</label>
+                                    <input style={inputStyle} value={guestFormData.lastName || ''} onChange={e => setGuestFormData({ ...guestFormData, lastName: e.target.value })} />
+                                </div>
                             </div>
-                            <div>
-                                <label style={labelStyle}>Email</label>
-                                <input
-                                    style={inputStyle}
-                                    value={guestFormData.email || ''}
-                                    onChange={e => setGuestFormData({ ...guestFormData, email: e.target.value })}
-                                />
+
+                            {/* Row 2: Contact */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                                <div>
+                                    <label style={labelStyle}>Phone</label>
+                                    <input style={inputStyle} value={guestFormData.phone || ''} onChange={e => setGuestFormData({ ...guestFormData, phone: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Email</label>
+                                    <input style={inputStyle} value={guestFormData.email || ''} onChange={e => setGuestFormData({ ...guestFormData, email: e.target.value })} />
+                                </div>
                             </div>
-                            <div>
-                                <label style={labelStyle}>Phone</label>
-                                <input
-                                    style={inputStyle}
-                                    value={guestFormData.phone || ''}
-                                    onChange={e => setGuestFormData({ ...guestFormData, phone: e.target.value })}
-                                    placeholder="+41 00 000 00 00"
-                                />
+
+                            {/* Row 3: Details */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
+                                <div>
+                                    <label style={labelStyle}>Date of birth</label>
+                                    <input type="date" style={inputStyle} value={guestFormData.birthDate || ''} onChange={e => setGuestFormData({ ...guestFormData, birthDate: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Gender</label>
+                                    <select style={inputStyle} value={guestFormData.gender || ''} onChange={e => setGuestFormData({ ...guestFormData, gender: e.target.value })}>
+                                        <option value="">Select...</option>
+                                        <option value="male">Male</option>
+                                        <option value="female">Female</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Language</label>
+                                    <select style={inputStyle} value={guestFormData.language || ''} onChange={e => setGuestFormData({ ...guestFormData, language: e.target.value })}>
+                                        <option value="">Select...</option>
+                                        <option value="en">English</option>
+                                        <option value="de">German</option>
+                                        <option value="fr">French</option>
+                                        <option value="it">Italian</option>
+                                        <option value="es">Spanish</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Row 4: ID */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                                <div>
+                                    <label style={labelStyle}>Identification Type</label>
+                                    <select style={inputStyle} value={guestFormData.identificationType || ''} onChange={e => setGuestFormData({ ...guestFormData, identificationType: e.target.value })}>
+                                        <option value="">Select Type...</option>
+                                        <option value="passport">Passport</option>
+                                        <option value="id_card">ID Card</option>
+                                        <option value="driving_license">Driving License</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Document Number</label>
+                                    <input style={inputStyle} value={guestFormData.identificationNumber || ''} onChange={e => setGuestFormData({ ...guestFormData, identificationNumber: e.target.value })} />
+                                </div>
                             </div>
                         </div>
                     </div>

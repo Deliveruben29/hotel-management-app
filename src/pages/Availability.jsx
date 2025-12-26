@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
-import { UNIT_GROUPS, UNITS, MOCK_RESERVATIONS } from '../data/mockData';
+import { UNIT_GROUPS, UNITS } from '../data/mockData';
+import { useReservations } from '../context/ReservationContext';
 
 export default function Availability() {
-    const [startDate, setStartDate] = useState(new Date('2025-12-21'));
+    const { reservations } = useReservations();
+    const [startDate, setStartDate] = useState(() => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d;
+    });
     const daysToShow = 14;
 
     // Generate dates
@@ -26,7 +32,7 @@ export default function Availability() {
 
         // Optimize: could map reservations to units first, but N is small here
         groupUnits.forEach(unit => {
-            const isOccupied = MOCK_RESERVATIONS.some(res => {
+            const isOccupied = reservations.some(res => {
                 if (res.room !== unit.name) return false;
 
                 const arrival = new Date(res.arrival);
@@ -98,11 +104,23 @@ export default function Availability() {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <button
-                        onClick={() => { const d = new Date(startDate); d.setDate(d.getDate() - 14); setStartDate(d); }}
+                        onClick={() => {
+                            const d = new Date(startDate);
+                            d.setDate(d.getDate() - 14);
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            setStartDate(d < today ? today : d);
+                        }}
                         style={navBtnStyle}
                     >«</button>
                     <button
-                        onClick={() => { const d = new Date(startDate); d.setDate(d.getDate() - 7); setStartDate(d); }}
+                        onClick={() => {
+                            const d = new Date(startDate);
+                            d.setDate(d.getDate() - 7);
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            setStartDate(d < today ? today : d);
+                        }}
                         style={navBtnStyle}
                     >‹</button>
 

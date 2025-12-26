@@ -11,7 +11,7 @@ export default function Services() {
     );
 
     const CreateServiceView = () => (
-        <div className="fade-in">
+        <div className="dashboard-view fade-in">
             <header className="view-header" style={{ marginBottom: '2rem' }}>
                 <div>
                     <div style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '0.5rem', fontWeight: 500 }}>

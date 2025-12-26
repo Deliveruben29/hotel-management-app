@@ -11,7 +11,7 @@ export default function Companies() {
     );
 
     const CreateCompanyView = () => (
-        <div className="fade-in">
+        <div className="dashboard-view fade-in">
             <header className="view-header" style={{ marginBottom: '2rem' }}>
                 <div>
                     <div style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '0.5rem', fontWeight: 500 }}>
@@ -267,7 +267,7 @@ const Select = ({ label, options }) => (
 
 const Checkbox = ({ label }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-        <input type="checkbox" style={{ transform: 'scale(1.2)' }} />
+        <input type="checkbox" style={{ transform: 'scale(1.2)', marginLeft: '2px' }} />
         <span style={{ fontSize: '0.9rem', color: '#2d3748' }}>{label}</span>
     </div>
 );
