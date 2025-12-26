@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_RESERVATIONS, UNITS } from '../data/mockData';
+import { useReservations } from '../context/ReservationContext';
 
 // Reusable card component to match the card-grid style
 const DashboardCard = ({ title, icon, children, actionLabel, onAction, fullHeight }) => (
@@ -35,38 +35,49 @@ const DashboardCard = ({ title, icon, children, actionLabel, onAction, fullHeigh
 
 export default function Dashboard() {
     const navigate = useNavigate();
+    const { reservations } = useReservations();
 
-    // Calculate Stats from Mock Data
+    // Calculate Stats from Real Data
     const stats = useMemo(() => {
-        const today = '2025-12-25'; // Fixed date matching user context
+        const today = new Date().toISOString().split('T')[0];
+        const resList = reservations || [];
 
-        const arrivals = MOCK_RESERVATIONS.filter(r => r.arrival === today);
-        const departures = MOCK_RESERVATIONS.filter(r => r.departure === today);
-        const inHouse = MOCK_RESERVATIONS.filter(r => r.status === 'checked_in');
+        const arrivals = resList.filter(r => r.arrival === today);
+        const departures = resList.filter(r => r.departure === today);
 
-        // Simple guest count logic
-        const guestsInHouse = inHouse.reduce((acc, curr) => acc + curr.pax, 0);
-        const guestsArriving = arrivals.reduce((acc, curr) => acc + curr.pax, 0);
-        const guestsDeparting = departures.reduce((acc, curr) => acc + curr.pax, 0);
+        // In House: Reservations covering today (excluding departures unless late?)
+        // Or simply status = checked_in?
+        // Let's stick to status 'checked_in' / 'IN_HOUSE'
+        const inHouse = resList.filter(r =>
+            (r.status === 'checked_in' || r.status === 'IN_HOUSE')
+        );
+
+        // Simple guest count logic (safeguard pax)
+        const getPax = (r) => Number(r.pax) || 1;
+
+        const guestsInHouse = inHouse.reduce((acc, curr) => acc + getPax(curr), 0);
+        const guestsArriving = arrivals.reduce((acc, curr) => acc + getPax(curr), 0);
+        const guestsDeparting = departures.reduce((acc, curr) => acc + getPax(curr), 0);
 
         return {
             arrivals: {
                 total: arrivals.length,
-                waiting: arrivals.filter(r => r.status === 'confirmed').length,
-                checkedIn: arrivals.filter(r => r.status === 'checked_in').length
+                waiting: arrivals.filter(r => r.status === 'confirmed' || r.status === 'CONFIRMED').length,
+                checkedIn: arrivals.filter(r => r.status === 'checked_in' || r.status === 'IN_HOUSE').length
             },
             departures: {
                 total: departures.length,
-                waiting: departures.filter(r => r.status === 'checked_in').length,
-                checkedOut: departures.filter(r => r.status === 'checked_out').length
+                waiting: departures.filter(r => r.status === 'checked_in' || r.status === 'IN_HOUSE').length,
+                checkedOut: departures.filter(r => r.status === 'checked_out' || r.status === 'CHECKED_OUT').length
             },
             guests: {
                 inHouse: guestsInHouse,
                 arrival: guestsArriving,
                 departure: guestsDeparting
-            }
+            },
+            todayDate: today
         };
-    }, []);
+    }, [reservations]);
 
     return (
         <main className="dashboard-grid fade-in">
@@ -157,7 +168,7 @@ export default function Dashboard() {
                     onAction={() => navigate('/reservations')}
                 >
                     <p style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '1rem' }}>
-                        All time-slices and unit types. Today: 25/12/2025.
+                        All time-slices and unit types. Today: {new Date().toLocaleDateString()}.
                     </p>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
@@ -186,7 +197,7 @@ export default function Dashboard() {
                 {/* 7. Guest Count */}
                 <DashboardCard title="Guest count" icon="👥" actionLabel="Export guest count">
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}>
-                        <span>&lt;</span> 25/12/2025 <span>&gt;</span>
+                        <span>&lt;</span> {new Date().toLocaleDateString()} <span>&gt;</span>
                     </div>
                     <p style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '1rem' }}>Over night time slice and bedroom only.</p>
 

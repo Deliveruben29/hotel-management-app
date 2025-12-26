@@ -102,5 +102,38 @@ export const ReservationService = {
         // Note: The 'data' blob status might become stale if we don't update it. 
         // Simpler to rely on update(fullObj).
         if (error) throw error;
+    },
+
+    async getHouseAccounts() {
+        const { data, error } = await supabase
+            .from('reservations')
+            .select('*')
+            .eq('status', 'house_account')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching house accounts:', error);
+            return [];
+        }
+
+        return data.map(row => {
+            const rawData = row.data || {};
+            const charges = rawData.extraCharges || [];
+            // Calc balance: Sum of all charges/payments
+            // Charge (+), Payment (-)
+            const balance = charges.reduce((sum, item) => {
+                if (item.type === 'payment') return sum - item.amount;
+                return sum + item.amount;
+            }, 0);
+
+            return {
+                ...rawData,
+                id: row.id,
+                name: row.guest_name,
+                status: row.status,
+                balance: balance,
+                lastUpdate: row.created_at // or updated_at
+            };
+        });
     }
 };

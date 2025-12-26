@@ -1,8 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MOCK_RESERVATIONS } from '../data/mockData';
+import { ReservationService } from '../services/reservationService';
 
 export default function Finance() {
     const [activeTab, setActiveTab] = useState('invoices');
+
+    // House Folios State
+    const [houseFolios, setHouseFolios] = useState([]);
+    const [isFolioModalOpen, setIsFolioModalOpen] = useState(false);
+    const [newFolioName, setNewFolioName] = useState('');
+
+    useEffect(() => {
+        if (activeTab === 'house folios') {
+            loadHouseFolios();
+        }
+    }, [activeTab]);
+
+    const loadHouseFolios = async () => {
+        const data = await ReservationService.getHouseAccounts();
+        setHouseFolios(data);
+    };
+
+    const handleCreateFolio = async (e) => {
+        e.preventDefault();
+        if (!newFolioName) return;
+
+        const newFolio = {
+            guestName: newFolioName,
+            status: 'house_account',
+            room: null,
+            arrival: new Date().toISOString().split('T')[0],
+            departure: new Date().toISOString().split('T')[0],
+            price: 0,
+            adults: 1,
+            email: '',
+            phone: '',
+            extraCharges: []
+        };
+
+        try {
+            await ReservationService.create(newFolio);
+            setNewFolioName('');
+            setIsFolioModalOpen(false);
+            loadHouseFolios(); // Refresh
+        } catch (error) {
+            alert('Error creating folio: ' + error.message);
+        }
+    };
 
     // Calculate dummy stats
     const totalRevenue = MOCK_RESERVATIONS.reduce((sum, res) => sum + res.rate, 0);
@@ -75,6 +119,71 @@ export default function Finance() {
         </div>
     );
 
+    const renderHouseFolios = () => {
+        return (
+            <div className="table-container" style={{
+                background: 'white',
+                borderRadius: 'var(--radius-lg)',
+                boxShadow: 'var(--shadow-sm)',
+                overflow: 'hidden',
+                border: '1px solid rgba(0,0,0,0.02)'
+            }}>
+                <div style={{ padding: '1rem', borderBottom: '1px solid #edf2f7', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <h3 style={{ margin: 0, fontSize: '1rem', color: '#2d3748' }}>House Accounts (Active)</h3>
+                        <span style={{ fontSize: '0.8rem', color: '#718096', background: '#edf2f7', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>{houseFolios.length}</span>
+                    </div>
+                    <button
+                        onClick={() => setIsFolioModalOpen(true)}
+                        className="btn"
+                        style={{ padding: '0.4rem 1rem', fontSize: '0.8rem', border: '1px solid #e2e8f0', cursor: 'pointer', background: 'white' }}
+                    >
+                        + Add Account
+                    </button>
+                </div>
+                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: '#f8fafc' }}>
+                            <tr style={{ borderBottom: '1px solid #edf2f7' }}>
+                                <th style={headerStyle}>Folio ID</th>
+                                <th style={headerStyle}>Account Name</th>
+                                <th style={headerStyle}>Created</th>
+                                <th style={headerStyle}>Status</th>
+                                <th style={{ ...headerStyle, textAlign: 'right' }}>Balance</th>
+                                <th style={{ ...headerStyle, width: '50px' }}></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {houseFolios.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#a0aec0' }}>No active house accounts found.</td>
+                                </tr>
+                            ) : houseFolios.map(folio => (
+                                <tr key={folio.id} style={{ borderBottom: '1px solid #edf2f7' }} className="table-row-hover">
+                                    <td style={{ ...cellStyle, fontFamily: 'monospace', fontWeight: 500 }}>#{folio.id.slice(0, 8)}...</td>
+                                    <td style={{ ...cellStyle, fontWeight: 600, color: 'var(--color-text-main)' }}>{folio.name}</td>
+                                    <td style={cellStyle}>{new Date(folio.lastUpdate || new Date()).toLocaleDateString()}</td>
+                                    <td style={cellStyle}>
+                                        <span style={{
+                                            padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase',
+                                            backgroundColor: '#EBF8FF', color: '#2B6CB0'
+                                        }}>
+                                            {folio.status.replace('_', ' ')}
+                                        </span>
+                                    </td>
+                                    <td style={{ ...cellStyle, textAlign: 'right', fontWeight: 600 }}>CHF {folio.balance.toFixed(2)}</td>
+                                    <td style={cellStyle}>⋮</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    };
+
+
+
     const StatCard = ({ title, value, sub, color }) => (
         <div style={{
             background: 'white',
@@ -99,8 +208,8 @@ export default function Finance() {
                 </div>
                 <div style={{ display: 'flex', gap: '1rem' }}>
                     <button className="btn" style={{ background: 'white', border: '1px solid #e2e8f0' }}>Export Report</button>
-                    <button className="btn btn-primary">
-                        <span>+ New Invoice</span>
+                    <button className="btn btn-primary" onClick={() => setIsFolioModalOpen(true)}>
+                        <span>+ New Folio</span>
                     </button>
                 </div>
             </header>
@@ -114,7 +223,7 @@ export default function Finance() {
 
             {/* Sub-navigation Tabs */}
             <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: '2rem' }}>
-                {['Invoices', 'Transactions', 'Cash Book', 'Reports'].map(tab => (
+                {['Invoices', 'House Folios', 'Transactions', 'Cash Book', 'Reports'].map(tab => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab.toLowerCase())}
@@ -134,7 +243,7 @@ export default function Finance() {
                 ))}
             </div>
 
-            {activeTab === 'invoices' ? renderInvoices() : (
+            {activeTab === 'invoices' ? renderInvoices() : activeTab === 'house folios' ? renderHouseFolios() : (
                 <div style={{
                     padding: '4rem',
                     textAlign: 'center',
@@ -149,6 +258,35 @@ export default function Finance() {
                 </div>
             )}
 
+            {isFolioModalOpen && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+                }}>
+                    <div style={{ background: 'white', padding: '2rem', borderRadius: '12px', width: '400px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                        <h3 style={{ marginTop: 0 }}>Create House Folio</h3>
+                        <p style={{ color: '#718096', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Open a new account for non-room charges.</p>
+
+                        <form onSubmit={handleCreateFolio}>
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem' }}>Account Name</label>
+                                <input
+                                    autoFocus
+                                    placeholder="e.g. Parking - Non Guest, Staff Tab..."
+                                    value={newFolioName}
+                                    onChange={e => setNewFolioName(e.target.value)}
+                                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                                    required
+                                />
+                            </div>
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Create Folio</button>
+                                <button type="button" className="btn" onClick={() => setIsFolioModalOpen(false)} style={{ border: '1px solid #e2e8f0' }}>Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }
