@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RATE_PLANS, UNIT_GROUPS } from '../data/mockData';
+import { RateService } from '../services/rateService';
 
 export default function Rates() {
     const [activeTab, setActiveTab] = useState('rate-plans');
 
-    // State for Rate Plans (Editable)
-    const [ratePlans, setRatePlans] = useState(RATE_PLANS);
+    // State
+    const [ratePlans, setRatePlans] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingPlan, setEditingPlan] = useState(null);
 
@@ -17,6 +21,36 @@ export default function Rates() {
         basePrice: 0,
         description: ''
     });
+
+    // --- Data Fetching ---
+    useEffect(() => {
+        loadRates();
+    }, []);
+
+    const loadRates = async () => {
+        try {
+            setLoading(true);
+            const data = await RateService.getAll();
+
+            if (data.length === 0) {
+                // Database is empty (first run). Seed with mock data.
+                console.log('Seeding database with default plans...');
+                const seededPlans = [];
+                for (const plan of RATE_PLANS) {
+                    await RateService.create(plan);
+                    seededPlans.push(plan);
+                }
+                setRatePlans(seededPlans);
+            } else {
+                setRatePlans(data);
+            }
+        } catch (err) {
+            console.error('Failed to load rates', err);
+            setError('Could not load rates from database. Check your connection/credentials.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // --- Handlers ---
 
@@ -38,14 +72,19 @@ export default function Rates() {
         setIsModalOpen(true);
     };
 
-    const handleDelete = (id, e) => {
+    const handleDelete = async (id, e) => {
         e.stopPropagation();
         if (confirm('Are you sure you want to delete this rate plan?')) {
-            setRatePlans(ratePlans.filter(p => p.id !== id));
+            try {
+                await RateService.delete(id);
+                setRatePlans(ratePlans.filter(p => p.id !== id));
+            } catch (err) {
+                alert('Error deleting plan: ' + err.message);
+            }
         }
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!formData.name || !formData.code) return alert('Name and Code are required.');
 
         const valBasePrice = Number(formData.basePrice);
@@ -59,15 +98,24 @@ export default function Rates() {
             currency: 'CHF'
         };
 
-        if (editingPlan) {
-            // Update
-            setRatePlans(ratePlans.map(p => p.id === editingPlan.id ? { ...p, ...newPlanData } : p));
-        } else {
-            // Create
-            const newId = `RP-${Math.floor(1000 + Math.random() * 9000)}`;
-            setRatePlans([...ratePlans, { id: newId, ...newPlanData }]);
+        try {
+            if (editingPlan) {
+                // Update
+                await RateService.update(editingPlan.id, newPlanData);
+                setRatePlans(ratePlans.map(p => p.id === editingPlan.id ? { ...p, ...newPlanData } : p));
+            } else {
+                // Create
+                const newId = `RP-${Math.floor(1000 + Math.random() * 9000)}`;
+                const payload = { id: newId, ...newPlanData };
+
+                await RateService.create(payload);
+                setRatePlans([...ratePlans, { id: newId, ...newPlanData }]);
+            }
+            setIsModalOpen(false);
+        } catch (err) {
+            console.error("Error saving:", err);
+            alert('Error saving plan: ' + (err.message || 'Unknown error'));
         }
-        setIsModalOpen(false);
     };
 
     // --- Renders ---
@@ -286,7 +334,17 @@ export default function Rates() {
                 </button>
             </div>
 
-            {activeTab === 'rate-plans' ? renderRatePlans() : renderPricingGrid()}
+            {loading ? (
+                <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                    Loading rates...
+                </div>
+            ) : error ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-danger)', background: '#fff5f5', borderRadius: 'var(--radius-md)', margin: '1rem 0' }}>
+                    {error}
+                </div>
+            ) : (
+                activeTab === 'rate-plans' ? renderRatePlans() : renderPricingGrid()
+            )}
 
             {/* Modal */}
             {isModalOpen && (
