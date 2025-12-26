@@ -1580,7 +1580,10 @@ export const ReservationSummary = ({
 
         const folioOnlyCharges = mappedCharges.filter(c => c.folioId === selectedFolioId);
         const folioChargesOnly = folioOnlyCharges.filter(c => c.type === 'charge');
-        const folioPaymentsOnly = folioOnlyCharges.filter(c => c.type === 'payment');
+        const folioPaymentsOnly = folioOnlyCharges.filter(c =>
+            c.type === 'payment' &&
+            !c.description.includes('Transfer to Accounts Receivable')
+        );
 
         // Multi-VAT Calculation Logic
         const breakdown = {};
