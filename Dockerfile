@@ -13,8 +13,8 @@ WORKDIR /app
 # Instalamos el servidor
 RUN npm install -g serve
 
-# Copiamos los archivos
-COPY --from=build /app/dist ./dist
+# Copiamos los archivos directamente a la raíz de trabajo
+COPY --from=build /app/dist .
 
-# EL COMANDO LIMPIO:
-CMD ["serve", "-s", "dist", "8080"]
+# El comando más simple posible:
+CMD ["serve", "-s", ".", "8080"]
