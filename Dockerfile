@@ -11,4 +11,4 @@ FROM node:20-slim
 WORKDIR /app
 RUN npm install -g serve
 COPY --from=build /app/dist .
-CMD ["serve", "-s", ".", "8080"]
+CMD ["serve", "-s", ".", "-l", "8080"]
