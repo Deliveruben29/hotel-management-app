@@ -18,4 +18,4 @@ COPY --from=build /app/dist ./dist
 
 # EXTREMADAMENTE IMPORTANTE para Cloud Run:
 # Escuchar en 0.0.0.0 es lo que evita el error de "failed to listen"
-CMD ["serve", "-s", "dist", "-l", "8080", "-a", "0.0.0.0"]
+CMD ["npx", "serve", "-s", "dist", "-l", "8080", "-a", "0.0.0.0"]
