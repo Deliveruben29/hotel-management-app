@@ -3,15 +3,18 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-"scripts": {
-  "build": "vite build",
-"start": "serve -s dist -l 8080"
-}
-"dependencies": {
-    "@supabase/supabase-js": "^2.x.x",
-    "react": "^19.x.x",
-    "react-dom": "^19.x.x",
-    "react-router-dom": "^7.x.x",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "start": "serve -s dist -l 8080",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.0.0",
     "serve": "^14.2.1"
   },
   "devDependencies": {
