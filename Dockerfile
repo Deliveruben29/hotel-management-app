@@ -9,12 +9,13 @@ RUN npm run build
 # 2. Servidor de producción
 FROM node:20-slim
 WORKDIR /app
+
+# Instalamos serve de forma global en esta imagen final
 RUN npm install -g serve
+
+# Copiamos la carpeta compilada desde la etapa anterior
 COPY --from=build /app/dist ./dist
 
-# Configuración de red
-ENV PORT 8080
-EXPOSE 8080
-
-# Comando directo sin comillas problemáticas
-CMD ["npx", "serve", "-s", "dist", "-l", "8080"]
+# EXTREMADAMENTE IMPORTANTE para Cloud Run:
+# Escuchar en 0.0.0.0 es lo que evita el error de "failed to listen"
+CMD ["serve", "-s", "dist", "-l", "8080", "-a", "0.0.0.0"]
