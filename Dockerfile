@@ -13,8 +13,8 @@ WORKDIR /app
 # Instalamos el servidor
 RUN npm install -g serve
 
-# Copiamos la carpeta dist que se creó en la Etapa 1
+# Copiamos los archivos
 COPY --from=build /app/dist ./dist
 
-# Comando final LIMPIO (sin -a ni -l)
+# EL COMANDO LIMPIO:
 CMD ["serve", "-s", "dist", "8080"]
