@@ -1,21 +1,21 @@
-# 1. Construcción
-FROM node:20-slim AS build
+# 1. Etapa de construcción (Build)
+FROM node:20 AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
 RUN npm run build
 
-# 2. Servidor de producción
-FROM node:20-slim
+# 2. Etapa de producción
+FROM node:20
 WORKDIR /app
 
-# Instalamos serve de forma global en esta imagen final
+# Instalamos serve globalmente en la imagen completa
 RUN npm install -g serve
 
-# Copiamos la carpeta compilada desde la etapa anterior
+# Copiamos la carpeta compilada
 COPY --from=build /app/dist ./dist
 
-# EXTREMADAMENTE IMPORTANTE para Cloud Run:
-# Escuchar en 0.0.0.0 es lo que evita el error de "failed to listen"
-CMD ["npx", "serve", "-s", "dist", "-l", "8080", "-a", "0.0.0.0"]
+# Usamos la ruta directa para evitar errores de PATH
+# Y quitamos npx para usar serve directamente
+CMD ["serve", "-s", "dist", "-l", "8080", "-a", "0.0.0.0"]
