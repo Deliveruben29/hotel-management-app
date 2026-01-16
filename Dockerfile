@@ -17,4 +17,4 @@ ENV PORT 8080
 EXPOSE 8080
 
 # Comando directo sin comillas problemáticas
-CMD serve -s dist -l 8080
+CMD ["npx", "serve", "-s", "dist", "-l", "8080"]
