@@ -18,4 +18,4 @@ COPY --from=build /app/dist ./dist
 
 # EXTREMADAMENTE IMPORTANTE: Usamos 'serve' para entregar los archivos
 # El puerto 8080 ahora sí responderá porque 'serve' no necesita dependencias de desarrollo
-CMD ["serve", "-s", "dist", "-l", "8080", "-a", "0.0.0.0"]
+CMD ["serve", "-s", "dist", "8080"]
