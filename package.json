@@ -4,12 +4,9 @@
   "version": "0.0.0",
   "type": "module",
 "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-   "start": "npm run build && npx serve -s dist -l 8080"
-    "preview": "vite preview"
-  },
+  "build": "vite build",
+  "start": "npx serve -s dist -l 8080"
+}
 "dependencies": {
     "@supabase/supabase-js": "^2.x.x",
     "react": "^19.x.x",
